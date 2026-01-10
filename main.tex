@@ -70,6 +70,243 @@ $(\Leftarrow)$ Presupunem că $V \setminus S$ este o acoperire cu vârfuri. Atun
 
 Concluzionăm că, deoarece putem transforma orice instanță a problemei Independent Set într-o instanță de Vertex Cover printr-o simplă operație de complementare (care durează timp polinomial), problema Vertex Cover este NP-Hard.
 
+\section{Algoritmi pentru problema Vertex Cover}
+
+Având în vedere caracterul NP-complet al problemei Vertex Cover, abordările algoritmice se împart în două mari categorii: algoritmi exacți, care garantează obținerea soluției optime dar au complexitate exponențială, și algoritmi aproximativi sau euristici, care sacrifică exactitatea în favoarea unui timp de execuție redus. În această secțiune sunt analizate un algoritm exact bazat pe backtracking (Branch \& Bound) și două abordări aproximative clasice.
+
+\subsection{Algoritm exact bazat pe Backtracking (Branch \& Bound)}
+
+\subsubsection{Ideea de bază}
+Algoritmul exact pornește de la observația fundamentală conform căreia, pentru orice muchie $\{u,v\} \in E$, cel puțin unul dintre noduri trebuie să aparțină acoperirii. Această constrângere permite construirea unui arbore de decizie binar, în care fiecare ramură corespunde includerii unuia dintre capetele muchiei selectate.
+
+Tehnica Branch \& Bound extinde backtracking-ul clasic prin introducerea unor limite (bound-uri) care permit eliminarea timpurie a ramurilor ce nu pot conduce la o soluție mai bună decât cea deja cunoscută.
+
+\subsubsection{Descrierea algoritmului}
+Algoritmul funcționează recursiv după următorii pași:
+\begin{enumerate}
+    \item Se selectează o muchie neacoperită $\{u,v\}$.
+    \item Se creează două ramuri:
+    \begin{itemize}
+        \item se include $u$ în soluție;
+        \item se include $v$ în soluție.
+    \end{itemize}
+    \item Se elimină din graf muchiile acoperite de nodul ales.
+    \item Se continuă recursiv până când nu mai există muchii neacoperite.
+    \item Ramurile pentru care cardinalitatea soluției parțiale depășește cea mai bună soluție cunoscută sunt eliminate (pruning).
+\end{enumerate}
+
+\subsubsection{Pseudocod}
+\begin{verbatim}
+BranchAndBound(G, C):
+    if E(G) = ∅:
+        actualizează soluția optimă
+        return
+
+    if |C| ≥ best:
+        return
+
+    alege muchia (u, v)
+
+    BranchAndBound(G - u, C ∪ {u})
+    BranchAndBound(G - v, C ∪ {v})
+\end{verbatim}
+
+\subsubsection{Complexitate}
+\begin{itemize}
+    \item \textbf{Timp:} $O(2^{|V|})$ în cel mai defavorabil caz.
+    \item \textbf{Spațiu:} $O(|V|)$ datorită adâncimii maxime a recursiei.
+\end{itemize}
+
+Acest algoritm este aplicabil exclusiv grafurilor de dimensiuni mici, fiind utilizat în special în contexte educaționale sau pentru validarea soluțiilor aproximative.
+
+\subsubsection{Avantaje și dezavantaje}
+
+\textbf{Avantaje:}
+\begin{itemize}
+    \item Produce întotdeauna o soluție optimă pentru problema Vertex Cover.
+    \item Permite eliminarea eficientă a ramurilor nepromițătoare prin tehnica de pruning (Branch \& Bound).
+    \item Este util pentru validarea soluțiilor aproximative sau pentru grafuri foarte mici.
+\end{itemize}
+
+\textbf{Dezavantaje:}
+\begin{itemize}
+    \item Are complexitate exponențială în cel mai defavorabil caz.
+    \item Nu este scalabil pentru grafuri de dimensiuni medii sau mari.
+    \item Consumul de timp crește rapid odată cu numărul de noduri.
+\end{itemize}
+
+
+---
+
+\subsection{Algoritm aproximativ 2-approx bazat pe muchii}
+
+\subsubsection{Principiul algoritmului}
+Algoritmul aproximativ clasic pentru Vertex Cover se bazează pe selectarea repetată a unei muchii arbitrare și includerea ambelor capete ale acesteia în acoperire. Muchiile incidente acestor noduri sunt apoi eliminate din graf.
+
+Această strategie este echivalentă cu construirea unei potriviri maxime (maximal matching), iar acoperirea rezultată este formată din toate nodurile potrivirii.
+
+\subsubsection{Pseudocod}
+\begin{verbatim}
+ApproxVertexCover(G):
+    C ← NULL
+    while E(G) != NULL:
+        alege muchia (u, v)
+        C ← C ∪ {u, v}
+        elimină toate muchiile incidente lui u sau v
+    return C
+\end{verbatim}
+
+\subsubsection{Garanția de aproximare}
+Fie $OPT$ cardinalitatea unei acoperiri minime și $ALG$ soluția produsă de algoritm. Atunci:
+\[
+ALG \leq 2 \cdot OPT
+\]
+
+Această limită este strict demonstrabilă, deoarece fiecare muchie selectată trebuie să fie acoperită de cel puțin un nod în soluția optimă, iar algoritmul include cel mult două.
+
+\subsubsection{Complexitate}
+\begin{itemize}
+    \item \textbf{Timp:} $O(|E|)$
+    \item \textbf{Spațiu:} $O(|V|)$
+\end{itemize}
+\subsubsection{Avantaje și dezavantaje}
+
+\textbf{Avantaje:}
+\begin{itemize}
+    \item Rulează în timp polinomial, fiind eficient chiar și pentru grafuri mari.
+    \item Are o garanție teoretică de aproximare de 2.
+    \item Este simplu de implementat și de explicat.
+\end{itemize}
+
+\textbf{Dezavantaje:}
+\begin{itemize}
+    \item Nu garantează obținerea unei soluții optime.
+    \item Calitatea soluției poate fi semnificativ mai slabă decât optimul în unele cazuri.
+    \item Alegerea arbitrară a muchiilor poate influența rezultatul final.
+\end{itemize}
+
+---
+
+\subsection { Algoritm exact parametrizat prin Kernelization }
+
+\subsubsection{Ideea de bază}
+Kernelization este o tehnică din cadrul algoritmilor parametrizați (FPT) care reduce dimensiunea problemei Vertex Cover folosind parametrul $k$, dimensiunea dorită a acoperirii. Prin aplicarea unor reguli de reducere, graful inițial este comprimat la un \emph{kernel} de dimensiune $O(k^2)$, fără a pierde informația necesară pentru a găsi o soluție optimă.
+
+Ulterior, se poate aplica un algoritm exact (de exemplu Branch \& Bound) pe kernelul redus pentru a determina acoperirea minimă.
+
+\subsubsection{Descrierea algoritmului}
+Algoritmul funcționează recursiv după următorii pași:
+
+\begin{enumerate}
+    \item Aplică reguli de reducere pentru noduri și muchii redundante:
+    \begin{itemize}
+        \item Noduri de grad zero pot fi eliminate.
+        \item Noduri de grad unul pot fi incluse automat în acoperire și eliminate împreună cu muchiile incidente.
+    \end{itemize}
+    \item Se repetă reducerea până când graful nu mai poate fi comprimat.
+    \item Graful rezultat (kernel) are $O(k^2)$ noduri și muchii.
+    \item Se aplică un algoritm exact pe kernel pentru a găsi Vertex Cover-ul minim.
+\end{enumerate}
+
+\subsubsection{Pseudocod}
+\begin{verbatim}
+KernelizationVC(G, k):
+    while reducere_posibila(G):
+        aplica reguli de reducere(G)
+    if |V(G)| > k^2:
+        return "Nu există VC de dimensiune k"
+    else:
+        return BranchAndBound(G, ∅)
+\end{verbatim}
+
+\subsubsection{Complexitate}
+\begin{itemize}
+    \item \textbf{Timp:} polinomial pentru reducerea kernelului; timpul algoritmului exact depinde de dimensiunea kernelului ($O(2^{O(k^2)})$).
+    \item \textbf{Spațiu:} $O(k^2)$ pentru kernel.
+\end{itemize}
+
+\subsubsection{Avantaje / Dezavantaje}
+\begin{itemize}
+    \item \textbf{Avantaje:} 
+    \begin{itemize}
+        \item Permite tratarea grafurilor mari atunci când soluția optimă este mică.
+        \item Combină eficiența reducerii cu exactitatea algoritmului Branch \& Bound.
+    \end{itemize}
+    \item \textbf{Dezavantaje:} 
+    \begin{itemize}
+        \item Necesită cunoștințe avansate de algoritmi parametrizați.
+        \item Ineficient dacă parametrul $k$ nu este mic.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Relaxare liniară și rotunjire}
+
+\subsubsection{Formulare prin programare liniară}
+Problema Vertex Cover poate fi formulată ca un program liniar întreg, în care fiecărui nod $v \in V$ îi este asociată o variabilă binară $x_v$, ce indică dacă nodul este inclus sau nu în acoperire:
+\[
+x_v =
+\begin{cases}
+1, & \text{dacă } v \in C \\
+0, & \text{altfel}
+\end{cases}
+\]
+
+Funcția obiectiv urmărește minimizarea cardinalității acoperirii:
+\[
+\min \sum_{v \in V} x_v
+\]
+
+Constrângerile asigură faptul că fiecare muchie este acoperită:
+\[
+x_u + x_v \geq 1 \quad \forall \{u,v\} \in E
+\]
+\[
+x_v \in \{0,1\}
+\]
+
+Această formulare este echivalentă cu problema originală, însă fiind un program liniar întreg, rămâne NP-dificilă.
+
+Prin relaxarea condiției de integritate și permiterea valorilor fracționare:
+\[
+x_v \in [0,1]
+\]
+problema devine un program liniar clasic, care poate fi rezolvat în timp polinomial folosind metode precum algoritmul simplex sau metode de punct interior.
+
+\subsubsection{Rotunjirea soluției}
+Soluția fracționară obținută prin relaxare liniară nu reprezintă, în general, o acoperire validă, deoarece valorile variabilelor nu mai sunt binare. Pentru a obține o soluție fezabilă pentru problema Vertex Cover, se aplică o tehnică de rotunjire.
+
+Regula standard de rotunjire este:
+\[
+x_v \geq 0.5 \Rightarrow v \in C
+\]
+
+Această regulă garantează că pentru orice muchie $\{u,v\}$, cel puțin unul dintre capete va fi inclus în acoperire, deoarece constrângerea $x_u + x_v \geq 1$ implică faptul că cel puțin una dintre variabile este mai mare sau egală cu $0.5$.
+
+\subsubsection{Complexitate}
+\begin{itemize}
+    \item \textbf{Timp:} $O(\text{LP}(V,E))$, unde $\text{LP}(V,E)$ reprezintă timpul de rezolvare al programului liniar, polinomial în $|V|$ și $|E|$.
+    \item \textbf{Spațiu:} $O(|V| + |E|)$.
+\end{itemize}
+
+\subsubsection{Avantaje și dezavantaje}
+
+\textbf{Avantaje:}
+\begin{itemize}
+    \item Problema relaxată poate fi rezolvată în timp polinomial folosind algoritmi standard de programare liniară.
+    \item Oferă o garanție teoretică de aproximare de 2 pentru problema Vertex Cover.
+    \item Abordarea este bazată pe fundamente matematice solide și permite extinderi către alte probleme de optimizare combinatorială.
+    \item Soluția fracționară poate oferi informații utile despre structura soluției optime.
+\end{itemize}
+
+\textbf{Dezavantaje:}
+\begin{itemize}
+    \item Necesită utilizarea unui solver de programare liniară, ceea ce poate crește complexitatea implementării.
+    \item Soluția obținută după rotunjire nu este optimă în general.
+    \item Pentru grafuri foarte mari, costul rezolvării programului liniar poate deveni semnificativ.
+\end{itemize}
+
+
+
 \begin{thebibliography}{8}
 
 \bibitem{karp1972}
@@ -88,9 +325,19 @@ Garey, M.R., Johnson, D.S.: Computers and Intractability: A Guide to the Theory 
 Sipser, M.: Introduction to the Theory of Computation, 3rd edn. Cengage Learning (2012). 
 \textit{(Sursa pentru conceptele de clase de complexitate, certificate și verificatori.)}
 
-\bibitem{geeksforgeeks}
-GeeksforGeeks: Vertex Cover Problem | Set 1 (Introduction and Approximate Algorithm), \url{https://www.geeksforgeeks.org/vertex-cover-problem-set-1-introduction-approximate-algorithm/}. Accesat la: 2024-05-22.
-\textit{(Sursa pentru implementarea euristică de bază.)}
+\bibitem{vazirani_approx}
+V. Vazirani,
+\textit{Approximation Algorithms},
+Springer, 2001.
+\textit{(Sursa pentru demonstrația teoretică a algoritmului 2-approx și pentru relaxarea liniară și rotunjire.)}
+
+\bibitem{niedermeier_kernel}
+R. Niedermeier,
+\textit{Invitation to Fixed-Parameter Algorithms},
+Oxford University Press, 2006.
+\textit{(Sursa pentru kernelization în Vertex Cover și reducerea la kernel de dimensiune $O(k^2)$.)}
+
+
 
 \end{thebibliography}
 
