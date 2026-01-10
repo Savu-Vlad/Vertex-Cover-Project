@@ -14,6 +14,7 @@ Run: `python3 scripts/generate_tests.py`
 """
 from pathlib import Path
 from itertools import combinations
+import random
 
 OUTDIR = Path(__file__).resolve().parent.parent / "tests"
 OUTDIR.mkdir(exist_ok=True)
@@ -221,5 +222,231 @@ for k in range(4):
 edges.append((0,50))
 edges.append((100,150))
 write_test("25.in", n, edges)
+# 26: Windmill / friendship graph F_k (k triangles share the same hub 0)
+# Edge order is "bad" for greedy matching: leaf-leaf edges come first.
+# This can push matching-based 2-approx close to its worst-case.
+k = 60
+n = 1 + 2*k
+edges = []
+for i in range(k):
+    a = 1 + 2*i
+    b = a + 1
+    edges.append((a, b))          # leaf-leaf first (hurts greedy)
+for i in range(k):
+    a = 1 + 2*i
+    b = a + 1
+    edges.append((0, a))
+    edges.append((0, b))
+write_test("26.in", n, edges)
+
+# 27: Same windmill F_k, but edge order is "good":
+# hub edges first (greedy tends to include hub early).
+k = 60
+n = 1 + 2*k
+edges = []
+for i in range(k):
+    a = 1 + 2*i
+    b = a + 1
+    edges.append((0, a))          # hub edges first (helps greedy)
+    edges.append((0, b))
+for i in range(k):
+    a = 1 + 2*i
+    b = a + 1
+    edges.append((a, b))
+write_test("27.in", n, edges)
+
+# 28: Circulant graph C(n; 1,2,7) on 30 nodes (6-regular, many triangles)
+# Good "non-bipartite / many cycles" stress test, still small enough for exact.
+n = 30
+jumps = [1, 2, 7]
+E = set()
+for i in range(n):
+    for d in jumps:
+        u = i
+        v = (i + d) % n
+        a, b = sorted((u, v))
+        E.add((a, b))
+edges = sorted(E)
+write_test("28.in", n, edges)
+
+# 29: Lollipop graph: clique K20 plus a path of 20 nodes attached to node 0
+# Hybrid structure: very dense part + sparse tail.
+clique = 20
+tail = 20
+n = clique + tail
+edges = []
+# clique on 0..19
+for i in range(0, clique):
+    for j in range(i+1, clique):
+        edges.append((i, j))
+# tail path on 20..39
+for i in range(clique, clique + tail - 1):
+    edges.append((i, i+1))
+# connect tail to clique node 0
+edges.append((0, clique))
+write_test("29.in", n, edges)
+
+# 30: "Almost bipartite": K12,12 plus an odd cycle inside the left part
+# Breaks bipartite exactness, but still structured.
+L = 12
+R = 12
+n = L + R
+E = set()
+# K12,12 edges: left 0..11, right 12..23
+for i in range(L):
+    for j in range(L, L+R):
+        E.add((i, j))
+# add an odd cycle on left part: 0-1-2-3-4-0 (5-cycle)
+cycle = [0, 1, 2, 3, 4]
+for i in range(len(cycle)):
+    u = cycle[i]
+    v = cycle[(i+1) % len(cycle)]
+    a, b = sorted((u, v))
+    E.add((a, b))
+edges = sorted(E)
+write_test("30.in", n, edges)
+
+# 31: Random-ish Erdos-Renyi G(n,p) (deterministic seed)
+# Useful to see ratios > 1, and runtime scaling.
+import random
+rnd = random.Random(12345)
+n = 120
+p = 0.08
+edges = []
+for i in range(n):
+    for j in range(i+1, n):
+        if rnd.random() < p:
+            edges.append((i,j))
+write_test("31.in", n, edges)
+
+# 32: Same n, higher density (harder)
+rnd = random.Random(54321)
+n = 120
+p = 0.18
+edges = []
+for i in range(n):
+    for j in range(i+1, n):
+        if rnd.random() < p:
+            edges.append((i,j))
+write_test("32.in", n, edges)
+
+# 33: Planted vertex cover (you know OPT exactly = k)
+# Construct: choose cover set C size k, connect every other vertex to C, no edges among non-cover.
+# Then OPT is exactly k (because every edge touches C and non-cover has no internal edges).
+n = 200
+k = 30
+C = set(range(k))
+edges = []
+for u in range(k, n):
+    # connect to 3 cover vertices deterministically
+    edges.append((u, (u*3) % k))
+    edges.append((u, (u*7) % k))
+    edges.append((u, (u*11) % k))
+# add a little density inside C so it's not trivial
+for i in range(k):
+    for j in range(i+1, k):
+        if ((i*17 + j*31) % 7) == 0:
+            edges.append((i,j))
+# dedup
+edges = sorted(set(tuple(sorted(e)) for e in edges))
+write_test("33.in", n, edges)
+
+# 34: Barbell graph: two cliques joined by a path (not a single bridge only)
+# More complex than test 22; stresses solvers but not as extreme.
+clique = 30
+pathlen = 40
+n = 2*clique + pathlen
+edges = []
+# left clique 0..29
+for i in range(0, clique):
+    for j in range(i+1, clique):
+        edges.append((i,j))
+# right clique (clique+pathlen)..(2*clique+pathlen-1)
+offset = clique + pathlen
+for i in range(offset, offset+clique):
+    for j in range(i+1, offset+clique):
+        edges.append((i,j))
+# path in the middle: 30..(30+pathlen-1)
+for i in range(clique, clique+pathlen-1):
+    edges.append((i, i+1))
+# connect left clique node 0 to path start, and path end to right clique node offset
+edges.append((0, clique))
+edges.append((clique+pathlen-1, offset))
+write_test("34.in", n, edges)
+
+# 35: 3-partite dense-ish (lots of triangles but not a clique)
+# A,B,C sizes: 40 each, connect A-B and B-C and A-C with patterned sparsity
+n = 120
+A = range(0,40)
+B = range(40,80)
+C = range(80,120)
+edges = []
+for u in A:
+    for v in B:
+        if ((u*13 + v*7) % 5) != 0:
+            edges.append((u,v))
+for u in B:
+    for v in C:
+        if ((u*11 + v*17) % 6) != 0:
+            edges.append((u,v))
+for u in A:
+    for v in C:
+        if ((u*19 + v*23) % 7) != 0:
+            edges.append((u,v))
+write_test("35.in", n, edges)
+
+# 36: "Hard-for-greedy" matching order on a bipartite graph (still bipartite)
+# This isn't worst-case theoretically, but it tends to increase cover sizes for the greedy order.
+L = 60
+R = 60
+n = L + R
+edges = []
+# build layered connections
+for i in range(L):
+    for d in (0,1,2,3):
+        j = (i + d) % R
+        edges.append((i, L+j))
+# reorder edges to be "bad": group by right side first
+edges.sort(key=lambda e: (e[1], e[0]))
+write_test("36.in", n, edges)
+
+# 37/38: same random-ish graph, different edge order
+def make_gnp_edges(n, p, seed):
+    rnd = random.Random(seed)
+    edges=[]
+    for i in range(n):
+        for j in range(i+1,n):
+            if rnd.random() < p:
+                edges.append((i,j))
+    return edges
+
+n = 160
+edges = make_gnp_edges(n, 0.10, 12345)
+write_test("37.in", n, sorted(edges))              # lexicographic order
+write_test("38.in", n, list(reversed(sorted(edges))))  # reversed order
+
+# 39/40: same structured graph (dense core + sparse tail), different edge order
+n = 200
+core = 40
+edges=[]
+# clique core
+for i in range(core):
+    for j in range(i+1, core):
+        edges.append((i,j))
+# tail path
+for i in range(core, n-1):
+    edges.append((i, i+1))
+# cross edges deterministic
+for i in range(core, n, 3):
+    edges.append((0, i))
+    edges.append((1, i))
+
+edges = [tuple(sorted(e)) for e in edges]
+edges = sorted(set(edges))
+
+write_test("39.in", n, edges)                      # "good" order
+edges_shuffled = edges[:]
+random.Random(777).shuffle(edges_shuffled)         # deterministic shuffle
+write_test("40.in", n, edges_shuffled)             # "shuffled" order
 
 print('Done. Tests written to `tests/`.')
