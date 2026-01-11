@@ -1,10 +1,27 @@
 // main.cpp
 // Vertex Cover: 4 algoritmi + benchmark CSV
 // C++17
+//
+// Algs:
+//  - bb   : Branch & Bound exact (cu timeout)
+//  - fpt  : FPT (Buss kernel + bounded search) exact (cu timeout)
+//  - match: 2-approx via maximal matching
+//  - lp   : LP relax + rounding (2-approx) via GLPK (optional)
+//
+// Build with LP enabled (Linux):
+//   sudo apt-get install -y libglpk-dev
+//   g++ -O2 -std=c++17 -DUSE_GLPK main.cpp -o vc -lglpk
+//
+// Build without LP (lp falls back to match):
+//   g++ -O2 -std=c++17 main.cpp -o vc
 
 #include <bits/stdc++.h>
 #include <filesystem>
 using namespace std;
+
+#ifdef USE_GLPK
+#include <glpk.h>
+#endif
 
 struct DynBitset {
     int nbits = 0;
@@ -137,26 +154,37 @@ static inline vector<int> cleanup_cover(const Graph& g, const vector<int>& cover
     vector<int> cover = coverIn;
     sort(cover.begin(), cover.end());
     cover.erase(unique(cover.begin(), cover.end()), cover.end());
-    for (int v : cover) in[v] = true;
+    for (int v : cover) if (0 <= v && v < g.n) in[v] = true;
 
-    // remove redundant vertices
-    for (int v : cover) {
-        if (!in[v]) continue;
-        in[v] = false;
+    bool changed = true;
+    while (changed) {
+        changed = false;
 
-        bool ok = true;
-        for (int ei : g.adjEdgeIdx[v]) {
-            auto [a,b] = g.edges[ei];
-            if (!in[a] && !in[b]) { ok = false; break; }
+        // Important: iterate all vertices; order matters less with repetition
+        for (int v = 0; v < g.n; v++) {
+            if (!in[v]) continue;
+
+            in[v] = false;
+            bool ok = true;
+
+            for (int ei : g.adjEdgeIdx[v]) {
+                auto [a, b] = g.edges[ei];
+                if (!in[a] && !in[b]) { ok = false; break; }
+            }
+
+            if (!ok) {
+                in[v] = true;
+            } else {
+                changed = true; // we successfully removed v
+            }
         }
-        if (!ok) in[v] = true;
     }
 
     vector<int> out;
-    out.reserve(cover.size());
     for (int v = 0; v < g.n; v++) if (in[v]) out.push_back(v);
     return out;
 }
+
 
 static inline int greedy_maximal_matching_count(const Graph& g, const DynBitset& rem) {
     vector<char> used(g.n, false);
@@ -172,7 +200,7 @@ static inline int greedy_maximal_matching_count(const Graph& g, const DynBitset&
 }
 
 // -------------------- Approx 2-approx via maximal matching (edges) --------------------
-static vector<int> approx_matching_2(const Graph& g) {
+static vector<int> approx_matching_2(const Graph& g, bool do_cleanup = true) {
     DynBitset rem = g.allEdges;
     vector<char> in(g.n, false);
 
@@ -186,46 +214,87 @@ static vector<int> approx_matching_2(const Graph& g) {
     }
 
     vector<int> cover;
+    cover.reserve(g.n);
     for (int i = 0; i < g.n; i++) if (in[i]) cover.push_back(i);
-    return cleanup_cover(g, cover);
+
+    if (do_cleanup) return cleanup_cover(g, cover);
+    return cover; // already unique
 }
 
-// -------------------- Primal-dual 2-approx (unweighted) --------------------
-static vector<int> approx_primal_dual_2(const Graph& g) {
-    DynBitset rem = g.allEdges;
 
-    vector<long double> slack(g.n, 1.0L);
-    vector<char> in(g.n, false);
+// -------------------- LP relaxation + rounding (2-approx) --------------------
+static vector<int> approx_lp_rounding_2(const Graph& g, long long timeout_ms, bool do_cleanup = true) {
+#ifdef USE_GLPK
+    int n = g.n;
+    int m = (int)g.edges.size();
+    if (m == 0) return {};
 
-    const long double EPS = 1e-15L;
+    glp_prob* lp = glp_create_prob();
+    glp_set_prob_name(lp, "vc_lp");
+    glp_set_obj_dir(lp, GLP_MIN);
 
-    while (!rem.empty()) {
-        int ei = rem.first_set();
-        auto [u,v] = g.edges[ei];
+    // variables x_v
+    glp_add_cols(lp, n);
+    for (int v = 1; v <= n; v++) {
+        glp_set_col_bnds(lp, v, GLP_DB, 0.0, 1.0); // 0 <= x_v <= 1
+        glp_set_obj_coef(lp, v, 1.0);              // min sum x_v
+    }
 
-        if (in[u] || in[v]) {
-            rem.reset(ei);
-            continue;
-        }
+    // constraints x_u + x_v >= 1 for each edge
+    glp_add_rows(lp, m);
+    for (int i = 1; i <= m; i++) {
+        glp_set_row_bnds(lp, i, GLP_LO, 1.0, 0.0);
+    }
 
-        long double delta = min(slack[u], slack[v]);
-        slack[u] -= delta;
-        slack[v] -= delta;
+    // matrix (2 nonzeros per row)
+    vector<int> ia(1 + 2*m), ja(1 + 2*m);
+    vector<double> ar(1 + 2*m);
 
-        if (slack[u] <= EPS) {
-            in[u] = true;
-            rem = rem.and_not(g.incMask[u]);
-        }
-        if (slack[v] <= EPS) {
-            in[v] = true;
-            rem = rem.and_not(g.incMask[v]);
-        }
+    for (int i = 0; i < m; i++) {
+        auto [u, v] = g.edges[i];
+        int row = i + 1;
+        int k1 = 2*i + 1;
+        int k2 = 2*i + 2;
+
+        ia[k1] = row; ja[k1] = u + 1; ar[k1] = 1.0;
+        ia[k2] = row; ja[k2] = v + 1; ar[k2] = 1.0;
+    }
+    glp_load_matrix(lp, 2*m, ia.data(), ja.data(), ar.data());
+
+    glp_smcp parm;
+    glp_init_smcp(&parm);
+    parm.presolve = GLP_ON;
+
+    if (timeout_ms > 0) {
+        parm.tm_lim = (timeout_ms > (long long)INT_MAX) ? INT_MAX : (int)timeout_ms;
+    }
+
+    int ret = glp_simplex(lp, &parm);
+    if (ret != 0) {
+        glp_delete_prob(lp);
+        return approx_matching_2(g, do_cleanup);
     }
 
     vector<int> cover;
-    for (int i = 0; i < g.n; i++) if (in[i]) cover.push_back(i);
-    return cleanup_cover(g, cover);
+    cover.reserve(n);
+    const double EPS = 1e-9;
+
+    // rounding: x_v >= 0.5 => v in cover
+    for (int v = 0; v < n; v++) {
+        double x = glp_get_col_prim(lp, v + 1);
+        if (x >= 0.5 - EPS) cover.push_back(v);
+    }
+
+    glp_delete_prob(lp);
+
+    if (do_cleanup) return cleanup_cover(g, cover);
+    return cover;
+#else
+    (void)timeout_ms;
+    return approx_matching_2(g, do_cleanup);
+#endif
 }
+
 
 // -------------------- Quick exact solver: two cliques connected by ONE bridge --------------------
 static vector<int> bfs_component_skip_edge(const Graph& g, int start, int banned_ei, vector<char>& vis) {
@@ -262,7 +331,7 @@ static optional<vector<int>> solve_bridge_of_two_cliques(const Graph& g) {
     int m = (int)g.edges.size();
     if (m == 0) return vector<int>{}; // empty graph
 
-    // Tarjan to find bridges
+    // Tarjan bridges
     vector<int> disc(n, -1), low(n, -1), parentEdge(n, -1);
     int timer = 0;
     vector<int> bridges;
@@ -288,27 +357,18 @@ static optional<vector<int>> solve_bridge_of_two_cliques(const Graph& g) {
     }
     if (bridges.empty()) return nullopt;
 
-    // Try each bridge as the "clique-bridge"
     for (int be : bridges) {
         auto [u0, v0] = g.edges[be];
 
         vector<char> vis(n, false);
         auto A = bfs_component_skip_edge(g, u0, be, vis);
-
-        // If v0 is still reachable without the bridge, it's not a true split (paranoia)
-        if (vis[v0]) continue;
-
+        if (vis[v0]) continue; // not a true split
         auto B = bfs_component_skip_edge(g, v0, be, vis);
 
-        // Build membership masks
         vector<char> inA(n, false), inB(n, false);
         for (int x : A) inA[x] = true;
         for (int x : B) inB[x] = true;
 
-        // Check that all edges are either:
-        // - inside A
-        // - inside B
-        // - or exactly this bridge
         bool okEdges = true;
         for (int ei = 0; ei < m; ei++) {
             auto [x,y] = g.edges[ei];
@@ -318,26 +378,22 @@ static optional<vector<int>> solve_bridge_of_two_cliques(const Graph& g) {
             if ((xa && ya) || (xb && yb)) continue;
             if (ei == be) continue;
 
-            // allow isolated vertices (no edges), but if an edge involves vertices outside A∪B => reject
-            // (meaning there are other edged components)
             okEdges = false;
             break;
         }
         if (!okEdges) continue;
 
-        // Verify clique property
         if (!is_clique_component(g, A, inA)) continue;
         if (!is_clique_component(g, B, inB)) continue;
 
-        // Construct an optimal cover:
-        // clique of size s needs s-1 vertices. Choose omissions so the bridge is covered.
+        // optimal cover: (|A|-1) + (|B|-1), avoid omitting both bridge endpoints
         int omitA = -1;
         for (int x : A) if (x != u0) { omitA = x; break; }
-        if (omitA == -1) omitA = u0; // A size 1
+        if (omitA == -1) omitA = u0;
 
         int omitB = -1;
         for (int x : B) if (x != v0) { omitB = x; break; }
-        if (omitB == -1) omitB = v0; // B size 1
+        if (omitB == -1) omitB = v0;
 
         vector<int> cover;
         cover.reserve(n);
@@ -345,14 +401,9 @@ static optional<vector<int>> solve_bridge_of_two_cliques(const Graph& g) {
         for (int x : A) if (x != omitA) cover.push_back(x);
         for (int x : B) if (x != omitB) cover.push_back(x);
 
-        // Ensure bridge covered (avoid omitting both endpoints)
-        if (!is_vertex_cover(g, cover)) {
-            // add one endpoint (safe)
-            cover.push_back(u0);
-        }
+        if (!is_vertex_cover(g, cover)) cover.push_back(u0);
 
         cover = cleanup_cover(g, cover);
-
         if (is_vertex_cover(g, cover)) return cover;
     }
 
@@ -365,7 +416,6 @@ struct BranchBoundSolver {
     vector<int> bestCover;
     int bestSize;
 
-    // timeout
     bool use_timeout = false;
     bool timed_out = false;
     chrono::high_resolution_clock::time_point deadline;
@@ -426,11 +476,8 @@ struct BranchBoundSolver {
     }
 
     vector<int> solve() {
-        // Upper bound from best of the two approximations (helps pruning)
-        auto ub1 = approx_matching_2(g);
-        auto ub2 = approx_primal_dual_2(g);
-        vector<int> ub = (ub2.size() < ub1.size()) ? ub2 : ub1;
-
+        // Upper bound from matching (fast, good enough for pruning)
+        auto ub = approx_matching_2(g);
         bestCover = ub;
         bestSize = (int)ub.size();
 
@@ -570,14 +617,11 @@ struct FPTSolver {
     }
 
     vector<int> solve_minimum() {
-        // Upper bound from best of the two approximations
-        auto ub1 = approx_matching_2(g);
-        auto ub2 = approx_primal_dual_2(g);
-        vector<int> ub = (ub2.size() < ub1.size()) ? ub2 : ub1;
+        // Upper bound from matching
+        auto ub = approx_matching_2(g);
         int UB = (int)ub.size();
 
         int LB = greedy_maximal_matching_count(g, g.allEdges);
-
         if (LB == UB) return ub;
 
         vector<int> cur, sol;
@@ -589,8 +633,7 @@ struct FPTSolver {
             if (timed_out) break;
         }
 
-        // If timed out, return best known UB (valid cover)
-        return ub;
+        return ub; // valid cover
     }
 };
 
@@ -639,20 +682,25 @@ struct BenchRow {
     int n=0, m=0;
 
     int opt=-1;
+
     double t_bb_ms=0;
 
     int fpt=-1;
     double t_fpt_ms=0;
 
-    int match=-1;
+    int match_raw=-1;
+    int match=-1;            // CLEAN
     double t_match_ms=0;
+    double ratio_match_raw=-1;
+    double ratio_match=-1;   // CLEAN ratio
 
-    int pd=-1;
-    double t_pd_ms=0;
-
-    double ratio_match=-1;
-    double ratio_pd=-1;
+    int lp_raw=-1;
+    int lp=-1;               // CLEAN
+    double t_lp_ms=0;
+    double ratio_lp_raw=-1;
+    double ratio_lp=-1;      // CLEAN ratio
 };
+
 
 static double ms_since(const chrono::high_resolution_clock::time_point& t0) {
     auto t1 = chrono::high_resolution_clock::now();
@@ -691,8 +739,7 @@ static vector<BenchRow> run_bench(const string& folder, long long timeout_ms) {
         {
             auto t0 = chrono::high_resolution_clock::now();
             special = solve_bridge_of_two_cliques(g);
-            double t_ms = ms_since(t0);
-            (void)t_ms;
+            (void)ms_since(t0);
         }
 
         // BB (timeout)
@@ -730,31 +777,47 @@ static vector<BenchRow> run_bench(const string& folder, long long timeout_ms) {
             }
         }
 
-        // Matching 2-approx
+        // Matching 2-approx (RAW + CLEAN)
         {
             auto t0 = chrono::high_resolution_clock::now();
-            auto cov = approx_matching_2(g);
+            auto cov_raw = approx_matching_2(g, false);
             r.t_match_ms = ms_since(t0);
+
+            r.match_raw = (int)cov_raw.size();
+            auto cov = cleanup_cover(g, cov_raw);
             r.match = (int)cov.size();
+
             if (!is_vertex_cover(g, cov)) cerr << "[ERR] MATCH invalid cover on " << r.name << "\n";
         }
 
-        // Primal-dual 2-approx
+
+        // LP rounding 2-approx (RAW + CLEAN)
         {
             auto t0 = chrono::high_resolution_clock::now();
-            auto cov = approx_primal_dual_2(g);
-            r.t_pd_ms = ms_since(t0);
-            r.pd = (int)cov.size();
-            if (!is_vertex_cover(g, cov)) cerr << "[ERR] PD invalid cover on " << r.name << "\n";
+            auto cov_raw = approx_lp_rounding_2(g, timeout_ms, false);
+            r.t_lp_ms = ms_since(t0);
+
+            r.lp_raw = (int)cov_raw.size();
+            auto cov = cleanup_cover(g, cov_raw);
+            r.lp = (int)cov.size();
+
+            if (!is_vertex_cover(g, cov)) cerr << "[ERR] LP invalid cover on " << r.name << "\n";
         }
 
+
         if (opt_known && r.opt > 0) {
-            r.ratio_match = double(r.match) / double(r.opt);
-            r.ratio_pd = double(r.pd) / double(r.opt);
+            r.ratio_match_raw = double(r.match_raw) / double(r.opt);
+            r.ratio_match     = double(r.match)     / double(r.opt);
+
+            r.ratio_lp_raw    = double(r.lp_raw)    / double(r.opt);
+            r.ratio_lp        = double(r.lp)        / double(r.opt);
         } else {
-            r.ratio_match = -1.0;
-            r.ratio_pd = -1.0;
+            r.ratio_match_raw = -1.0;
+            r.ratio_match     = -1.0;
+            r.ratio_lp_raw    = -1.0;
+            r.ratio_lp        = -1.0;
         }
+
 
         rows.push_back(r);
     }
@@ -764,19 +827,25 @@ static vector<BenchRow> run_bench(const string& folder, long long timeout_ms) {
 
 static void write_csv(const string& outPath, const vector<BenchRow>& rows) {
     ofstream out(outPath);
-    out << "test,n,m,opt,bb_ms,fpt,fpt_ms,match,match_ms,match_ratio,pd,pd_ms,pd_ratio\n";
+    out << "test,n,m,opt,bb_ms,fpt,fpt_ms,"
+           "match_raw,match,match_ms,match_raw_ratio,match_ratio,"
+           "lp_raw,lp,lp_ms,lp_raw_ratio,lp_ratio\n";
     out.setf(std::ios::fixed);
     out << setprecision(6);
+
     for (auto& r : rows) {
         out << r.name << ","
             << r.n << "," << r.m << ","
             << r.opt << "," << r.t_bb_ms << ","
             << r.fpt << "," << r.t_fpt_ms << ","
-            << r.match << "," << r.t_match_ms << "," << r.ratio_match << ","
-            << r.pd << "," << r.t_pd_ms << "," << r.ratio_pd
+            << r.match_raw << "," << r.match << "," << r.t_match_ms << ","
+            << r.ratio_match_raw << "," << r.ratio_match << ","
+            << r.lp_raw << "," << r.lp << "," << r.t_lp_ms << ","
+            << r.ratio_lp_raw << "," << r.ratio_lp
             << "\n";
     }
 }
+
 
 // -------------------- main --------------------
 int main(int argc, char** argv) {
@@ -784,7 +853,7 @@ int main(int argc, char** argv) {
     cin.tie(nullptr);
 
     // args:
-    // --alg=bb|fpt|match|pd
+    // --alg=bb|fpt|match|lp
     // --bench <folder> --out <csv>
     // --timeout_ms <int>   (default 2000)
     string alg = "bb";
@@ -816,7 +885,7 @@ int main(int argc, char** argv) {
 
     Graph g = read_graph_from_stream(cin);
 
-    // If this is the bridge-of-two-cliques pattern, solve exactly instantly (prevents hangs on test 22)
+    // If this is the bridge-of-two-cliques pattern, solve exactly instantly
     if (auto special = solve_bridge_of_two_cliques(g); special.has_value()) {
         auto cover = cleanup_cover(g, *special);
         print_solution(cover);
@@ -832,9 +901,9 @@ int main(int argc, char** argv) {
         FPTSolver fpt(g, timeout_ms);
         cover = fpt.solve_minimum();
     } else if (alg == "match") {
-        cover = approx_matching_2(g);
-    } else if (alg == "pd") {
-        cover = approx_primal_dual_2(g);
+        cover = approx_matching_2(g, false);
+    } else if (alg == "lp") {
+        cover = approx_lp_rounding_2(g, timeout_ms, false);
     } else {
         BranchBoundSolver bb(g, timeout_ms);
         cover = bb.solve();
