@@ -5,14 +5,18 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{url}
 
 \begin{document}
 
 \title{Proiect Analiza Algoritmilor: Problema Vertex Cover}
-\author{Savu Vlad-Ștefan}
+\author{Savu Vlad-Ștefan, Sandu Petru-Calin, Eduard Stefan Rusu}
+\
 \institute{Facultatea de Automatică și Calculatoare, \\
-Universitatea Politehnica din București \\
-\email{vlad.savu@stud.acs.upb.ro}}
+Universitatea Politehnica din București }
 
 \maketitle
 
@@ -38,7 +42,7 @@ Problema Vertex Cover nu este izolată; ea face parte dintr-o familie de problem
 
 \begin{itemize}
     \item \textbf{Legătura cu Problema Rucsacului (Knapsack):} Deși Knapsack pare o problemă de inventar, în variantele sale pe grafuri, aceasta se intersectează cu Vertex Cover. Dacă fiecare nod are un cost de instalare diferit, problema devine una de tip Knapsack: selectarea subsetului de noduri cu cost minim care să acopere toate muchiile sub o constrângere de resurse.
-    
+
     \item \textbf{Bioinformatică și Eliminarea Conflictelor:} În alinierea secvențelor de ADN, se construiesc grafuri unde muchiile reprezintă date contradictorii. Rezolvarea Vertex Cover permite identificarea setului minim de date ce trebuie eliminate pentru a obține un set consistent.
 
     \item \textbf{Cyber-Security (Sisteme IDS):} În rețelele mari, monitorizarea fiecărui pachet este costisitoare. Vertex Cover este utilizată pentru a plasa sisteme de detecție a intruziunilor în noduri strategice, asigurând monitorizarea tuturor conexiunilor.
@@ -227,12 +231,12 @@ KernelizationVC(G, k):
 
 \subsubsection{Avantaje / Dezavantaje}
 \begin{itemize}
-    \item \textbf{Avantaje:} 
+    \item \textbf{Avantaje:}
     \begin{itemize}
         \item Permite tratarea grafurilor mari atunci când soluția optimă este mică.
         \item Combină eficiența reducerii cu exactitatea algoritmului Branch \& Bound.
     \end{itemize}
-    \item \textbf{Dezavantaje:} 
+    \item \textbf{Dezavantaje:}
     \begin{itemize}
         \item Necesită cunoștințe avansate de algoritmi parametrizați.
         \item Ineficient dacă parametrul $k$ nu este mic.
@@ -307,22 +311,121 @@ Această regulă garantează că pentru orice muchie $\{u,v\}$, cel puțin unul 
 
 
 
+
+%________________________________________________________________________________________
+
+
+\section{Evaluare experimentala}
+
+\subsection{Conditii de testare (WIP)}
+Testele au fost rulate pe urmatoarea configuratie (completeaza exact):
+\begin{itemize}
+    \item \textbf{Hardware:} \texttt{Ryzen 7 8700G}, \texttt{8N/16T}, \texttt{64GB ram}.
+    \item \textbf{Sistem de operare:} \texttt{<Linux distro + versiune>} (kernel \texttt{<versiune>}).
+    \item \textbf{Compilator:} C++: \texttt{ -O2 -std=c++17 -Wall -Wextra -pedantic -DUSE\_GLPK}.
+    \item \textbf{Solver LP:} GLPK \texttt{<versiune>} (compilare cu \texttt{-DUSE\_GLPK} si link \texttt{-lglpk}).
+    \item \textbf{Timeout:} \texttt{<timeout\_ms>} ms pentru algoritmii exacati (BB si FPT).
+    \item \textbf{Repetari:} \texttt{5} repetari/instanta; timpul raportat este \texttt{median} (conform implementarii).
+    \item \textbf{Post-procesare solutie:} \texttt{cleanup\_cover}.
+    \item \textbf{Set de teste:} \texttt{<descriere folder / provenienta / generare>}, total \texttt{40} instante.
+\end{itemize}
+
+
+%_______________________________________________________________________________________
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{longtable}{|l|r|r|r|c|r|c|r|r|}
+\caption{Timpi de executie (ms). \texttt{TO} indica depasirea timeout-ului. Valorile sunt mediane pe \texttt{reps} rulari.}
+\label{tab:times}\\
+\hline
+Test & $n$ & $m$ & BB (ms) & BB st. & FPT (ms) & FPT st. & MATCH (ms) & LP (ms) \\
+\hline
+\endfirsthead
+\hline
+Test & $n$ & $m$ & BB (ms) & BB st. & FPT (ms) & FPT st. & MATCH (ms) & LP (ms) \\
+\hline
+\endhead
+\hline
+\multicolumn{9}{|r|}{\emph{Continua pe pagina urmatoare}}\\
+\hline
+\endfoot
+\hline
+\endlastfoot
+
+% --- PLACEHOLDER ROWS ---
+01.in & \texttt{<n>} & \texttt{<m>} & \texttt{<bb\_ms|TO>} & \texttt{<OK|TO>} & \texttt{<fpt\_ms|TO>} & \texttt{<OK|TO>} & \texttt{<match\_ms>} & \texttt{<lp\_ms>} \\
+\hline
+% ...
+40.in & \texttt{<n>} & \texttt{<m>} & \texttt{<bb\_ms|TO>} & \texttt{<OK|TO>} & \texttt{<fpt\_ms|TO>} & \texttt{<OK|TO>} & \texttt{<match\_ms>} & \texttt{<lp\_ms>} \\
+\hline
+
+\end{longtable}
+\end{center}
+%_______________________________________________________________________________________
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{longtable}{|l|c|r|r|r|r|r|r|r|}
+\caption{Calitatea solutiilor pentru MATCH si LP. \texttt{Base} este \texttt{OPT} (cand OPT e cunoscut) sau \texttt{LB} (cand OPT nu e cunoscut). Raportam \texttt{raw} si dupa \texttt{cleanup}.}
+\label{tab:quality}\\
+\hline
+Test & Base & MATCH raw & MATCH & Ratio & LP raw & LP & Ratio & OPT/LB \\
+\hline
+\endfirsthead
+\hline
+Test & Base & MATCH raw & MATCH & Ratio & LP raw & LP & Ratio & OPT/LB \\
+\hline
+\endhead
+\hline
+\multicolumn{9}{|r|}{\emph{Continua pe pagina urmatoare}}\\
+\hline
+\endfoot
+\hline
+\endlastfoot
+
+% --- PLACEHOLDER ROWS ---
+01.in & \texttt{<opt|lb|na>} & \texttt{<match\_raw>} & \texttt{<match>} & \texttt{<match\_ratio>} & \texttt{<lp\_raw>} & \texttt{<lp>} & \texttt{<lp\_ratio>} & \texttt{<opt\_or\_lb\_value>} \\
+\hline
+% ...
+40.in & \texttt{<opt|lb|na>} & \texttt{<match\_raw>} & \texttt{<match>} & \texttt{<match\_ratio>} & \texttt{<lp\_raw>} & \texttt{<lp>} & \texttt{<lp\_ratio>} & \texttt{<opt\_or\_lb\_value>} \\
+\hline
+
+\end{longtable}
+\end{center}
+
+
+
+
+
+
+
+%_______________________________________________________________________________________
+
+
+
+
+
+
+
+
+
 \begin{thebibliography}{8}
 
 \bibitem{karp1972}
-Karp, R.M.: Reducibility among combinatorial problems. In: Miller, R.E., Thatcher, J.W. (eds.) Complexity of Computer Computations, pp. 85--103. Plenum Press, New York (1972). 
+Karp, R.M.: Reducibility among combinatorial problems. In: Miller, R.E., Thatcher, J.W. (eds.) Complexity of Computer Computations, pp. 85--103. Plenum Press, New York (1972).
 \textit{(Sursa principală pentru clasificarea Vertex Cover ca fiind NP-completă.)}
 
 \bibitem{clrs2009}
-Cormen, T.H., Leiserson, C.E., Rivest, R.L., Stein, C.: Introduction to Algorithms, 3rd edn. MIT Press, Cambridge (2009). 
+Cormen, T.H., Leiserson, C.E., Rivest, R.L., Stein, C.: Introduction to Algorithms, 3rd edn. MIT Press, Cambridge (2009).
 \textit{(Manualul standard de algoritmică folosit pentru definițiile formale și demonstrația reducerii de la Independent Set.)}
 
 \bibitem{garey1979}
-Garey, M.R., Johnson, D.S.: Computers and Intractability: A Guide to the Theory of NP-Completeness. W. H. Freeman and Company, San Francisco (1979). 
+Garey, M.R., Johnson, D.S.: Computers and Intractability: A Guide to the Theory of NP-Completeness. W. H. Freeman and Company, San Francisco (1979).
 \textit{(Cartea de referință pentru demonstrarea NP-durității diverselor probleme.)}
 
 \bibitem{sipser2012}
-Sipser, M.: Introduction to the Theory of Computation, 3rd edn. Cengage Learning (2012). 
+Sipser, M.: Introduction to the Theory of Computation, 3rd edn. Cengage Learning (2012).
 \textit{(Sursa pentru conceptele de clase de complexitate, certificate și verificatori.)}
 
 \bibitem{geeksforgeeks}
