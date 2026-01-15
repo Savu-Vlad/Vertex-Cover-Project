@@ -8,20 +8,28 @@
 \usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{array}
-\usepackage{url}
+\usepackage{listings}
+\usepackage{url} % for \url in bibliography
+
+\lstset{
+  basicstyle=\ttfamily,
+  columns=fullflexible,
+  keepspaces=true,
+  mathescape=true
+}
+
 
 \begin{document}
 
 \title{Proiect Analiza Algoritmilor: Problema Vertex Cover}
 \author{Savu Vlad-Ștefan, Sandu Petru-Calin, Eduard Stefan Rusu}
-\
 \institute{Facultatea de Automatică și Calculatoare, \\
 Universitatea Politehnica din București }
 
 \maketitle
 
 \begin{abstract}
-Această lucrare analizează problema acoperirii cu vârfuri (Vertex Cover), o problemă fundamentală în teoria grafurilor și una dintre cele 21 de probleme NP-complete identificate de Richard Karp în 1972. Studiul de față urmărește compararea performanței dintre o soluție exactă, bazată pe tehnica backtracking, și două abordări euristice/aproximative. Analiza se concentrează pe compromisul dintre timpul de execuție și calitatea soluției obținute (apropierea de cardinalitatea minimă).
+Această lucrare analizează problema acoperirii cu vârfuri (Vertex Cover), o problemă fundamentală în teoria grafurilor și una dintre cele 21 de probleme NP-Complete identificate de Richard Karp în 1972. Studiul de față urmărește compararea performanței dintre o soluție exactă, bazată pe tehnica backtracking, și două abordări euristice/aproximative. Analiza se concentrează pe compromisul dintre timpul de execuție și calitatea soluției obținute (apropierea de cardinalitatea minimă).
 \keywords{Vertex Cover \and NP-Complete \and Independent Set \and Algoritmi Aproximativi \and Backtracking \and Optimizare combinatorie.}
 \end{abstract}
 
@@ -32,17 +40,17 @@ Problema acoperirii cu vârfuri (\textit{Vertex Cover}) este o problemă clasic�
 
 
 
-Scopul principal este identificarea unei acoperiri de cardinalitate minimă, numită \textit{Minimum Vertex Cover}. În varianta sa de decizie, problema întreabă dacă există o acoperire de dimensiune cel mult $k$. Această variantă este demonstrată a fi NP-completă, ceea ce implică faptul că, în absența unor dovezi contrare privind relația $P=NP$, nu există un algoritm de timp polinomial care să rezolve problema pe cazul general.
+Scopul principal este identificarea unei acoperiri de cardinalitate minimă, numită \textit{Minimum Vertex Cover}. În varianta sa de decizie, problema întreabă dacă există o acoperire de dimensiune cel mult $k$. Această variantă este demonstrată a fi NP-Complete, ceea ce implică faptul că, în absența unor dovezi contrare privind relația $P=NP$, nu există un algoritm de timp polinomial care să rezolve problema pe cazul general.
 
 \subsection{Context Istoric și Importanță}
-Vertex Cover ocupă un loc central în cercetarea complexității computaționale. Ea este strâns legată de alte probleme celebre, precum \textit{Independent Set} și \textit{Clique}. De fapt, o mulțime $S$ este un set independent în graful $G$ dacă și numai dacă complementul său, $V \setminus S$, este o acoperire cu vârfuri. Această dualitate este adesea utilizată în demonstrațiile de NP-duritate și în transformările polinomiale dintre probleme.
+Vertex Cover ocupă un loc central în cercetarea complexității computaționale. Ea este strâns legată de alte probleme celebre, precum \textit{Independent Set} și \textit{Clique}. De fapt, o mulțime $S$ este un set independent în graful $G$ dacă și numai dacă complementul său, $V \setminus S$, este o acoperire cu vârfuri. Această dualitate este adesea utilizată în demonstrațiile de NP-Hard și în transformările polinomiale dintre probleme.
 
 \subsection{Aplicații practice și conexiuni cu alte probleme}
 Problema Vertex Cover nu este izolată; ea face parte dintr-o familie de probleme de optimizare combinatorie, servind drept model pentru numeroase situații reale:
 
 \begin{itemize}
     \item \textbf{Legătura cu Problema Rucsacului (Knapsack):} Deși Knapsack pare o problemă de inventar, în variantele sale pe grafuri, aceasta se intersectează cu Vertex Cover. Dacă fiecare nod are un cost de instalare diferit, problema devine una de tip Knapsack: selectarea subsetului de noduri cu cost minim care să acopere toate muchiile sub o constrângere de resurse.
-
+    
     \item \textbf{Bioinformatică și Eliminarea Conflictelor:} În alinierea secvențelor de ADN, se construiesc grafuri unde muchiile reprezintă date contradictorii. Rezolvarea Vertex Cover permite identificarea setului minim de date ce trebuie eliminate pentru a obține un set consistent.
 
     \item \textbf{Cyber-Security (Sisteme IDS):} În rețelele mari, monitorizarea fiecărui pachet este costisitoare. Vertex Cover este utilizată pentru a plasa sisteme de detecție a intruziunilor în noduri strategice, asigurând monitorizarea tuturor conexiunilor.
@@ -76,7 +84,7 @@ Concluzionăm că, deoarece putem transforma orice instanță a problemei Indepe
 
 \section{Algoritmi pentru problema Vertex Cover}
 
-Având în vedere caracterul NP-complet al problemei Vertex Cover, abordările algoritmice se împart în două mari categorii: algoritmi exacți, care garantează obținerea soluției optime dar au complexitate exponențială, și algoritmi aproximativi sau euristici, care sacrifică exactitatea în favoarea unui timp de execuție redus. În această secțiune sunt analizate un algoritm exact bazat pe backtracking (Branch \& Bound) și două abordări aproximative clasice.
+Având în vedere caracterul NP-Complete al problemei Vertex Cover, abordările algoritmice se împart în două mari categorii: algoritmi exacți, care garantează obținerea soluției optime dar au complexitate exponențială, și algoritmi aproximativi sau euristici, care sacrifică exactitatea în favoarea unui timp de execuție redus. În această secțiune sunt analizate un algoritm exact bazat pe backtracking (Branch \& Bound) și două abordări aproximative clasice.
 
 \subsection{Algoritm exact bazat pe Backtracking (Branch \& Bound)}
 
@@ -100,20 +108,21 @@ Algoritmul funcționează recursiv după următorii pași:
 \end{enumerate}
 
 \subsubsection{Pseudocod}
-\begin{verbatim}
+\begin{lstlisting}
 BranchAndBound(G, C):
-    if E(G) = ∅:
-        actualizează soluția optimă
+    if $E(G) = \emptyset$:
+        actualizeaza solutia optima
         return
 
-    if |C| ≥ best:
+    if $|C| \ge \texttt{best}$:
         return
 
     alege muchia (u, v)
 
-    BranchAndBound(G - u, C ∪ {u})
-    BranchAndBound(G - v, C ∪ {v})
-\end{verbatim}
+    BranchAndBound(G - u, $C \cup \{u\}$)
+    BranchAndBound(G - v, $C \cup \{v\}$)
+\end{lstlisting}
+
 
 \subsubsection{Complexitate}
 \begin{itemize}
@@ -140,7 +149,6 @@ Acest algoritm este aplicabil exclusiv grafurilor de dimensiuni mici, fiind util
 \end{itemize}
 
 
----
 
 \subsection{Algoritm aproximativ 2-approx bazat pe muchii}
 
@@ -150,15 +158,16 @@ Algoritmul aproximativ clasic pentru Vertex Cover se bazează pe selectarea repe
 Această strategie este echivalentă cu construirea unei potriviri maxime (maximal matching), iar acoperirea rezultată este formată din toate nodurile potrivirii.
 
 \subsubsection{Pseudocod}
-\begin{verbatim}
+\begin{lstlisting}
 ApproxVertexCover(G):
-    C ← NULL
-    while E(G) != NULL:
+    C <- empty
+    while $E(G) \ne \emptyset$:
         alege muchia (u, v)
-        C ← C ∪ {u, v}
-        elimină toate muchiile incidente lui u sau v
+        $C <- C \cup \{u, v\}$
+        elimina toate muchiile incidente lui u sau v
     return C
-\end{verbatim}
+\end{lstlisting}
+
 
 \subsubsection{Garanția de aproximare}
 Fie $OPT$ cardinalitatea unei acoperiri minime și $ALG$ soluția produsă de algoritm. Atunci:
@@ -189,7 +198,6 @@ Această limită este strict demonstrabilă, deoarece fiecare muchie selectată 
     \item Alegerea arbitrară a muchiilor poate influența rezultatul final.
 \end{itemize}
 
----
 
 \subsection { Algoritm exact parametrizat prin Kernelization }
 
@@ -205,7 +213,8 @@ Algoritmul funcționează recursiv după următorii pași:
     \item Aplică reguli de reducere pentru noduri și muchii redundante:
     \begin{itemize}
         \item Noduri de grad zero pot fi eliminate.
-        \item Noduri de grad unul pot fi incluse automat în acoperire și eliminate împreună cu muchiile incidente.
+        \item Noduri de grad 1: daca $v$ are un singur vecin $u$, putem include direct $u$ in acoperire (se acopera muchia $(u,v)$),
+eliminam $u$ si muchiile incidente si decrementam parametrul $k$.
     \end{itemize}
     \item Se repetă reducerea până când graful nu mai poate fi comprimat.
     \item Graful rezultat (kernel) are $O(k^2)$ noduri și muchii.
@@ -213,15 +222,16 @@ Algoritmul funcționează recursiv după următorii pași:
 \end{enumerate}
 
 \subsubsection{Pseudocod}
-\begin{verbatim}
+\begin{lstlisting}
 KernelizationVC(G, k):
     while reducere_posibila(G):
         aplica reguli de reducere(G)
-    if |V(G)| > k^2:
-        return "Nu există VC de dimensiune k"
+    if $|E(G)| > k^2$:
+        return "Nu exista VC de dimensiune k"
     else:
-        return BranchAndBound(G, ∅)
-\end{verbatim}
+        return BranchAndBound(G, $\emptyset$)
+\end{lstlisting}
+
 
 \subsubsection{Complexitate}
 \begin{itemize}
@@ -231,12 +241,12 @@ KernelizationVC(G, k):
 
 \subsubsection{Avantaje / Dezavantaje}
 \begin{itemize}
-    \item \textbf{Avantaje:}
+    \item \textbf{Avantaje:} 
     \begin{itemize}
         \item Permite tratarea grafurilor mari atunci când soluția optimă este mică.
         \item Combină eficiența reducerii cu exactitatea algoritmului Branch \& Bound.
     \end{itemize}
-    \item \textbf{Dezavantaje:}
+    \item \textbf{Dezavantaje:} 
     \begin{itemize}
         \item Necesită cunoștințe avansate de algoritmi parametrizați.
         \item Ineficient dacă parametrul $k$ nu este mic.
@@ -268,7 +278,7 @@ x_u + x_v \geq 1 \quad \forall \{u,v\} \in E
 x_v \in \{0,1\}
 \]
 
-Această formulare este echivalentă cu problema originală, însă fiind un program liniar întreg, rămâne NP-dificilă.
+Această formulare este echivalentă cu problema originală, însă fiind un program liniar întreg, rămâne NP-Hard.
 
 Prin relaxarea condiției de integritate și permiterea valorilor fracționare:
 \[
@@ -311,84 +321,319 @@ Această regulă garantează că pentru orice muchie $\{u,v\}$, cel puțin unul 
 
 
 
-
 %________________________________________________________________________________________
 
 
 \section{Evaluare experimentala}
 
-\subsection{Conditii de testare (WIP)}
-Testele au fost rulate pe urmatoarea configuratie (completeaza exact):
+\subsection{Conditii de testare}
+Testele au fost rulate pe urmatoarea configuratie:
 \begin{itemize}
     \item \textbf{Hardware:} \texttt{Ryzen 7 8700G}, \texttt{8N/16T}, \texttt{64GB ram}.
-    \item \textbf{Sistem de operare:} \texttt{<Linux distro + versiune>} (kernel \texttt{<versiune>}).
+    \item \textbf{Sistem de operare:} \texttt{<Nobara Linux 43>}  \texttt{<Linux 6.18.2-200.nobara.fc43.4>}.
     \item \textbf{Compilator:} C++: \texttt{ -O2 -std=c++17 -Wall -Wextra -pedantic -DUSE\_GLPK}.
-    \item \textbf{Solver LP:} GLPK \texttt{<versiune>} (compilare cu \texttt{-DUSE\_GLPK} si link \texttt{-lglpk}).
-    \item \textbf{Timeout:} \texttt{<timeout\_ms>} ms pentru algoritmii exacati (BB si FPT).
+    \item \textbf{Solver LP:} GLPK (compilare cu \texttt{-DUSE\_GLPK} si link \texttt{-lglpk}).
+    \item \textbf{Timeout:} \texttt{4000} ms pentru algoritmii exacati (BB si FPT).
     \item \textbf{Repetari:} \texttt{5} repetari/instanta; timpul raportat este \texttt{median} (conform implementarii).
     \item \textbf{Post-procesare solutie:} \texttt{cleanup\_cover}.
-    \item \textbf{Set de teste:} \texttt{<descriere folder / provenienta / generare>}, total \texttt{40} instante.
+    \item \textbf{Set de teste:} \texttt{folder: tests}, total \texttt{40} instante.
+\end{itemize}
+\subsection{Test suite si generare date}
+
+Pentru evaluarea algoritmilor am folosit o suita determinista de teste, generata automat cu un script Python. Scopul a fost sa acoparim atat cazuri mici (unde putem valida usor corectitudinea), cat si instante mai mari (unde putem observa scalarea timpului de executie). Testele sunt scrise in fisiere text separate, numerotate, pentru a putea reproduce rezultatele in mod consistent.
+
+\subsubsection{Formatul fisierelor de intrare}
+Fiecare test este un fisier \texttt{XX.in} care descrie un graf neorientat:
+\begin{itemize}
+    \item Prima linie contine doua numere intregi: \texttt{N M}, unde \texttt{N} este numarul de noduri, iar \texttt{M} este numarul de muchii.
+    \item Urmeaza \texttt{M} linii de forma \texttt{u v}, cu \texttt{u} si \texttt{v} id-uri 0-based pentru capetele muchiei.
 \end{itemize}
 
 
+%________________________________________________________________________________________
+
+\subsubsection{Compozitia suitei de teste (grupare pe intervale 01--40)}
+Suita contine 40 de instante, gandite sa acopere cazuri de baza, topologii clasice, grafuri regulate, stres pe dimensiune si cateva teste speciale unde ordinea muchiilor poate influenta implementari greedy (de tip maximal matching).
+
+\begin{itemize}
+    \item \textbf{Teste 01--04 (cazuri foarte mici / sanity checks):}
+    grafuri triviale si verificabile manual: fara muchii, o muchie, lant scurt, ciclu mic.
+
+    \item \textbf{Teste 05--09 (structuri canonice mici-medii):}
+    clica $K_5$, stea mica, lant pe 20 noduri, ciclu pe 20 noduri, bipartit complet $K_{10,10}$.
+
+    \item \textbf{Teste 10--12 (densitate controlata + componente multiple):}
+    lant pe 100 noduri cu cateva muchii suplimentare (chords), graf relativ dens pe 100 noduri (numar fix de muchii), si un test cu 3 componente conexe (lant + ciclu + stea) in acelasi fisier.
+
+    \item \textbf{Teste 13--16 (structuri regulate / sparse control):}
+    arbore (layout de arbore binar), grid $10\times 10$, clica $K_{15}$, si un graf bipartit rar pe 200 noduri (muchii distribuite determinist).
+
+    \item \textbf{Teste 17--21 (stres pe dimensiune si topologii extreme):}
+    graf cu hub-uri (3 hub-uri conectate la majoritatea nodurilor), lant cu 1000 noduri, stea cu 1000 noduri, graf pe 500 noduri cu un numar fix de muchii (chunk determinist), grid subtire $2\times 250$.
+
+    \item \textbf{Teste 22--25 (dense + edge cases + structuri compuse):}
+    doua clici mari legate printr-un pod, graf gol (fara muchii), graf pe 250 noduri cu un numar fix de muchii, si o padure (4 lanturi) cu cateva legaturi intre componente.
+
+    \item \textbf{Teste 26--27 (windmill / friendship graph, sensibil la ordinea muchiilor):}
+    aceeasi instanta $F_k$ scrisa in doua ordine: una "rea" (muchiile frunza-frunza primele) si una "buna" (muchiile cu hub-ul primele). Scopul este sa evidentieze dependenta de ordine pentru unele euristici greedy.
+
+    \item \textbf{Teste 28--30 (grafuri mici dar structurale, pentru comportament non-trivial):}
+    graf circulant $C(n;1,2,7)$ (multe cicluri/triunghiuri), lollipop (clica $K_{20}$ + coada de lant), si un graf "aproape bipartit" ($K_{12,12}$ plus un ciclu impar in partea stanga).
+
+    \item \textbf{Teste 31--32 (Erdos-Renyi determinist, densitati diferite):}
+    grafuri $G(n,p)$ pe 120 noduri cu seed fix, pentru doua valori ale lui $p$ (mai rar vs. mai dens), utile pentru compararea timpului si a raportului fata de optim pe instante "random-like".
+
+    \item \textbf{Test 33 (cover plantat, $OPT$ cunoscut):}
+    instanta construita astfel incat exista un vertex cover de dimensiune exacta $k$ (muchiile sunt construite sa atinga un set $C$ de dimensiune $k$, iar intre nodurile din afara lui $C$ nu exista muchii). Util pentru validarea corectitudinii si pentru verificarea calitatii aproximarii.
+
+    \item \textbf{Test 34 (barbell):}
+    doua clici mari conectate printr-un lant (nu doar un pod). Este un exemplu clasic cu subgraf dens + legatura rara, util pentru stres pe algoritmi exacti.
+
+    \item \textbf{Test 35 (3-partite dense-ish):}
+    graf cu trei partitii (A,B,C) si multe muchii intre ele, cu rarire determinista. Produce multe triunghiuri, dar nu este clica; bun pentru a evita "trivialitatea" bipartita.
+
+    \item \textbf{Test 36 (bipartit cu ordine de muchii nefavorabila):}
+    graf bipartit stratificat, apoi muchiile sunt reordonate (grupate dupa partea dreapta) pentru a crea un parcurs nefavorabil pentru selectia greedy.
+
+    \item \textbf{Teste 37--38 (acelasi graf, ordine inversata):}
+    aceeasi instanta $G(n,p)$ pe 160 noduri, salvata in ordine lexicografica vs. ordine inversa. Permite izolarea efectului ordinii de intrare asupra euristicilor.
+
+    \item \textbf{Teste 39--40 (acelasi graf structurat, ordine buna vs. shuffle):}
+    graf cu un nucleu dens (clica) + coada rara (lant) + legaturi catre cateva noduri hub; aceeasi multime de muchii este scrisa o data in ordine "buna" (determinista) si o data amestecata cu un seed fix.
+\end{itemize}
+
+
+
+\subsubsection{Ordinea muchiilor ca factor experimental}
+Desi problema Vertex Cover este definita pe graf, unele implementari greedy (ex.: selectarea unei muchii arbitrare sau maximal matching) pot fi influentate de ordinea in care sunt citite muchiile. De aceea am inclus teste pereche cu \textbf{aceeasi multime de muchii}, dar cu \textbf{ordine diferita}:
+\begin{itemize}
+    \item \textbf{Windmill / friendship graph} $F_k$: o ordine "rea" (muchiile intre frunze primele) vs. o ordine "buna" (muchiile cu hub-ul primele).
+    \item \textbf{Acelasi graf, ordine inversata:} aceeasi instanta scrisa lexicografic vs. invers.
+    \item \textbf{Ordine amestecata determinist:} aceeasi instanta cu muchii amestecate cu un seed fix.
+\end{itemize}
+
+\subsubsection{Reproducibilitate}
+Scriptul de generare este determinist (foloseste reguli fixe si seed-uri explicite acolo unde este cazul), astfel incat suita poate fi regenerata identic pe orice sistem. Aceasta proprietate ajuta la compararea corecta a algoritmilor si la depanare.
+
+
+
+
+
+\subsection{Date Experimentale:}
+
+
 %_______________________________________________________________________________________
 \begin{center}
 \small
 \renewcommand{\arraystretch}{1.1}
-\begin{longtable}{|l|r|r|r|c|r|c|r|r|}
-\caption{Timpi de executie (ms). \texttt{TO} indica depasirea timeout-ului. Valorile sunt mediane pe \texttt{reps} rulari.}
+\begin{longtable}{|l|r|r|r|r|r|r|}
+\caption{Timpi de executie (ms). \texttt{TO} indica depasirea timeout-ului. Valorile sunt mediane pe \texttt{5} rulari.}
 \label{tab:times}\\
 \hline
-Test & $n$ & $m$ & BB (ms) & BB st. & FPT (ms) & FPT st. & MATCH (ms) & LP (ms) \\
+Test & $n$ & $m$ & BB (ms) & FPT (ms) & MATCH (ms) & LP (ms) \\
 \hline
 \endfirsthead
 \hline
-Test & $n$ & $m$ & BB (ms) & BB st. & FPT (ms) & FPT st. & MATCH (ms) & LP (ms) \\
+Test & $n$ & $m$ & BB (ms) & FPT (ms) & MATCH (ms) & LP (ms) \\
 \hline
 \endhead
 \hline
-\multicolumn{9}{|r|}{\emph{Continua pe pagina urmatoare}}\\
+\multicolumn{7}{|r|}{\emph{Continua pe pagina urmatoare}}\\
 \hline
 \endfoot
 \hline
 \endlastfoot
 
-% --- PLACEHOLDER ROWS ---
-01.in & \texttt{<n>} & \texttt{<m>} & \texttt{<bb\_ms|TO>} & \texttt{<OK|TO>} & \texttt{<fpt\_ms|TO>} & \texttt{<OK|TO>} & \texttt{<match\_ms>} & \texttt{<lp\_ms>} \\
+
+% --- Unverified tabel 1 ---
+01.in & 1 & 0 & \texttt{0.000900} & \texttt{0.000000} & \texttt{0.000050} & \texttt{0.000020} \\
 \hline
-% ...
-40.in & \texttt{<n>} & \texttt{<m>} & \texttt{<bb\_ms|TO>} & \texttt{<OK|TO>} & \texttt{<fpt\_ms|TO>} & \texttt{<OK|TO>} & \texttt{<match\_ms>} & \texttt{<lp\_ms>} \\
+02.in & 2 & 1 & \texttt{0.000560} & \texttt{0.000000} & \texttt{0.000110} & \texttt{0.104878} \\
 \hline
+03.in & 3 & 2 & \texttt{0.000360} & \texttt{0.000000} & \texttt{0.000070} & \texttt{0.036509} \\
+\hline
+04.in & 4 & 4 & \texttt{0.000610} & \texttt{0.000410} & \texttt{0.000090} & \texttt{0.035879} \\
+\hline
+05.in & 5 & 10 & \texttt{0.001720} & \texttt{0.001820} & \texttt{0.000110} & \texttt{0.042329} \\
+\hline
+06.in & 10 & 9 & \texttt{0.000460} & \texttt{0.000210} & \texttt{0.000070} & \texttt{0.033049} \\
+\hline
+07.in & 20 & 19 & \texttt{0.001480} & \texttt{0.000660} & \texttt{0.000250} & \texttt{0.045329} \\
+\hline
+08.in & 20 & 20 & \texttt{0.000760} & \texttt{0.000540} & \texttt{0.000240} & \texttt{0.052289} \\
+\hline
+09.in & 20 & 100 & \texttt{0.001570} & \texttt{0.001090} & \texttt{0.000290} & \texttt{0.226756} \\
+\hline
+10.in & 100 & 120 & \texttt{0.052479} & \texttt{0.905691} & \texttt{0.001370} & \texttt{0.336153} \\
+\hline
+11.in & 100 & 2000 & \texttt{1711.191803} & \texttt{1.418921} & \texttt{0.000920} & \texttt{8.422586} \\
+\hline
+12.in & 20 & 18 & \texttt{0.001970} & \texttt{0.002960} & \texttt{0.000190} & \texttt{0.051529} \\
+\hline
+13.in & 50 & 49 & \texttt{0.007030} & \texttt{0.008050} & \texttt{0.000440} & \texttt{0.097988} \\
+\hline
+14.in & 100 & 180 & \texttt{0.003799} & \texttt{0.002490} & \texttt{0.001290} & \texttt{0.522090} \\
+\hline
+15.in & 15 & 105 & \texttt{0.482130} & \texttt{0.010340} & \texttt{0.000240} & \texttt{0.133227} \\
+\hline
+16.in & 200 & 100 & \texttt{0.005400} & \texttt{0.003870} & \texttt{0.002460} & \texttt{0.360132} \\
+\hline
+17.in & 100 & 294 & \texttt{0.001310} & \texttt{0.000830} & \texttt{0.000160} & \texttt{0.151237} \\
+\hline
+18.in & 1000 & 999 & \texttt{0.028859} & \texttt{0.024350} & \texttt{0.017390} & \texttt{10.216730} \\
+\hline
+19.in & 1000 & 999 & \texttt{0.003080} & \texttt{0.002180} & \texttt{0.000480} & \texttt{0.698336} \\
+\hline
+20.in & 500 & 2500 & \texttt{0.037539} & \texttt{0.841272} & \texttt{0.000550} & \texttt{2.051598} \\
+\hline
+21.in & 500 & 748 & \texttt{0.014940} & \texttt{0.012380} & \texttt{0.008149} & \texttt{5.886419} \\
+\hline
+22.in & 200 & 9901 & \texttt{TO} & \texttt{0.000000} & \texttt{0.046549} & \texttt{54.941238} \\
+\hline
+23.in & 30 & 0 & \texttt{0.000850} & \texttt{0.000000} & \texttt{0.000060} & \texttt{0.000020} \\
+\hline
+24.in & 250 & 1000 & \texttt{0.011400} & \texttt{0.112918} & \texttt{0.000250} & \texttt{0.562889} \\
+\hline
+25.in & 200 & 198 & \texttt{0.005980} & \texttt{0.004340} & \texttt{0.002519} & \texttt{0.651817} \\
+\hline
+26.in & 121 & 180 & \texttt{0.020830} & \texttt{0.103518} & \texttt{0.001490} & \texttt{0.584118} \\
+\hline
+27.in & 121 & 180 & \texttt{0.003970} & \texttt{0.103208} & \texttt{0.001560} & \texttt{0.545319} \\
+\hline
+28.in & 30 & 90 & \texttt{0.212586} & \texttt{11.646000} & \texttt{0.000780} & \texttt{0.250045} \\
+\hline
+29.in & 40 & 210 & \texttt{25.156662} & \texttt{0.102158} & \texttt{0.000640} & \texttt{0.427821} \\
+\hline
+30.in & 24 & 149 & \texttt{0.005240} & \texttt{0.008200} & \texttt{0.000370} & \texttt{0.343832} \\
+\hline
+31.in & 120 & 597 & \texttt{TO} & \texttt{TO} & \texttt{0.002410} & \texttt{2.839111} \\
+\hline
+32.in & 120 & 1294 & \texttt{TO} & \texttt{TO} & \texttt{0.003630} & \texttt{5.414659} \\
+\hline
+33.in & 200 & 548 & \texttt{TO} & \texttt{1.660176} & \texttt{0.000810} & \texttt{0.769084} \\
+\hline
+34.in & 100 & 911 & \texttt{TO} & \texttt{TO} & \texttt{0.005270} & \texttt{2.771063} \\
+\hline
+35.in & 120 & 3986 & \texttt{TO} & \texttt{TO} & \texttt{0.003940} & \texttt{87.914548} \\
+\hline
+36.in & 120 & 240 & \texttt{0.004440} & \texttt{0.003130} & \texttt{0.001720} & \texttt{0.961600} \\
+\hline
+37.in & 160 & 1335 & \texttt{TO} & \texttt{TO} & \texttt{0.004190} & \texttt{8.165512} \\
+\hline
+38.in & 160 & 1335 & \texttt{TO} & \texttt{TO} & \texttt{0.004339} & \texttt{6.033676} \\
+\hline
+39.in & 200 & 1047 & \texttt{TO} & \texttt{900.190453} & \texttt{0.004590} & \texttt{3.990588} \\
+\hline
+40.in & 200 & 1047 & \texttt{TO} & \texttt{TO} & \texttt{0.004130} & \texttt{4.566826} \\
+\hline
+
 
 \end{longtable}
 \end{center}
-%_______________________________________________________________________________________
+
+
+
+%Unverified table 2________________________________________________________
 \begin{center}
 \small
 \renewcommand{\arraystretch}{1.1}
-\begin{longtable}{|l|c|r|r|r|r|r|r|r|}
-\caption{Calitatea solutiilor pentru MATCH si LP. \texttt{Base} este \texttt{OPT} (cand OPT e cunoscut) sau \texttt{LB} (cand OPT nu e cunoscut). Raportam \texttt{raw} si dupa \texttt{cleanup}.}
+\begin{longtable}{|l|r|r|r|r|r|r|r|}
+\caption{Calitatea solutiilor pentru MATCH si LP. Raportul este calculat fata de OPT atunci cand OPT este cunoscut; altfel raportul este \texttt{NA}. Raportam \texttt{raw} si dupa \texttt{cleanup}.}
 \label{tab:quality}\\
 \hline
-Test & Base & MATCH raw & MATCH & Ratio & LP raw & LP & Ratio & OPT/LB \\
+Test & OPT & MATCH raw & MATCH & Ratio & LP raw & LP & Ratio \\
 \hline
 \endfirsthead
 \hline
-Test & Base & MATCH raw & MATCH & Ratio & LP raw & LP & Ratio & OPT/LB \\
+Test & OPT & MATCH raw & MATCH & Ratio & LP raw & LP & Ratio \\
 \hline
 \endhead
 \hline
-\multicolumn{9}{|r|}{\emph{Continua pe pagina urmatoare}}\\
+\multicolumn{8}{|r|}{\emph{Continua pe pagina urmatoare}}\\
 \hline
 \endfoot
 \hline
 \endlastfoot
 
-% --- PLACEHOLDER ROWS ---
-01.in & \texttt{<opt|lb|na>} & \texttt{<match\_raw>} & \texttt{<match>} & \texttt{<match\_ratio>} & \texttt{<lp\_raw>} & \texttt{<lp>} & \texttt{<lp\_ratio>} & \texttt{<opt\_or\_lb\_value>} \\
+01.in & 0 & 0 & 0 & \texttt{NA} & 0 & 0 & \texttt{NA} \\
 \hline
-% ...
-40.in & \texttt{<opt|lb|na>} & \texttt{<match\_raw>} & \texttt{<match>} & \texttt{<match\_ratio>} & \texttt{<lp\_raw>} & \texttt{<lp>} & \texttt{<lp\_ratio>} & \texttt{<opt\_or\_lb\_value>} \\
+02.in & 1 & 2 & 1 & 1.000000 & 1 & 1 & 1.000000 \\
+\hline
+03.in & 1 & 2 & 1 & 1.000000 & 1 & 1 & 1.000000 \\
+\hline
+04.in & 2 & 4 & 2 & 1.000000 & 2 & 2 & 1.000000 \\
+\hline
+05.in & 4 & 4 & 4 & 1.000000 & 5 & 4 & 1.000000 \\
+\hline
+06.in & 1 & 2 & 1 & 1.000000 & 1 & 1 & 1.000000 \\
+\hline
+07.in & 10 & 20 & 10 & 1.000000 & 10 & 10 & 1.000000 \\
+\hline
+08.in & 10 & 20 & 10 & 1.000000 & 10 & 10 & 1.000000 \\
+\hline
+09.in & 10 & 20 & 10 & 1.000000 & 10 & 10 & 1.000000 \\
+\hline
+10.in & 53 & 100 & 53 & 1.000000 & 61 & 53 & 1.000000 \\
+\hline
+11.in & 23 & 24 & 23 & 1.000000 & 23 & 23 & 1.000000 \\
+\hline
+12.in & 7 & 12 & 7 & 1.000000 & 10 & 7 & 1.000000 \\
+\hline
+13.in & 18 & 34 & 20 & 1.111111 & 18 & 18 & 1.000000 \\
+\hline
+14.in & 50 & 100 & 50 & 1.000000 & 50 & 50 & 1.000000 \\
+\hline
+15.in & 14 & 14 & 14 & 1.000000 & 15 & 14 & 1.000000 \\
+\hline
+16.in & 100 & 200 & 100 & 1.000000 & 100 & 100 & 1.000000 \\
+\hline
+17.in & 3 & 6 & 3 & 1.000000 & 3 & 3 & 1.000000 \\
+\hline
+18.in & 500 & 1000 & 500 & 1.000000 & 500 & 500 & 1.000000 \\
+\hline
+19.in & 1 & 2 & 1 & 1.000000 & 1 & 1 & 1.000000 \\
+\hline
+20.in & 6 & 6 & 6 & 1.000000 & 6 & 6 & 1.000000 \\
+\hline
+21.in & 250 & 500 & 250 & 1.000000 & 250 & 250 & 1.000000 \\
+\hline
+22.in & 198 & 200 & 198 & 1.000000 & 200 & 198 & 1.000000 \\
+\hline
+23.in & 0 & 0 & 0 & \texttt{NA} & 0 & 0 & \texttt{NA} \\
+\hline
+24.in & 5 & 6 & 5 & 1.000000 & 5 & 5 & 1.000000 \\
+\hline
+25.in & 100 & 200 & 100 & 1.000000 & 100 & 100 & 1.000000 \\
+\hline
+26.in & 61 & 120 & 120 & 1.967213 & 121 & 120 & 1.967213 \\
+\hline
+27.in & 61 & 120 & 61 & 1.000000 & 121 & 120 & 1.967213 \\
+\hline
+28.in & 20 & 30 & 20 & 1.000000 & 30 & 20 & 1.000000 \\
+\hline
+29.in & 29 & 40 & 29 & 1.000000 & 39 & 29 & 1.000000 \\
+\hline
+30.in & 12 & 20 & 12 & 1.000000 & 12 & 12 & 1.000000 \\
+\hline
+31.in & \texttt{NA} & 110 & 90 & \texttt{NA} & 120 & 92 & \texttt{NA} \\
+\hline
+32.in & \texttt{NA} & 118 & 104 & \texttt{NA} & 120 & 104 & \texttt{NA} \\
+\hline
+33.in & 30 & 32 & 30 & 1.000000 & 30 & 30 & 1.000000 \\
+\hline
+34.in & \texttt{NA} & 100 & 78 & \texttt{NA} & 100 & 78 & \texttt{NA} \\
+\hline
+35.in & \texttt{NA} & 80 & 80 & \texttt{NA} & 120 & 80 & \texttt{NA} \\
+\hline
+36.in & 60 & 120 & 60 & 1.000000 & 60 & 60 & 1.000000 \\
+\hline
+37.in & \texttt{NA} & 150 & 136 & \texttt{NA} & 160 & 131 & \texttt{NA} \\
+\hline
+38.in & \texttt{NA} & 156 & 133 & \texttt{NA} & 160 & 131 & \texttt{NA} \\
+\hline
+39.in & 119 & 200 & 146 & 1.226891 & 200 & 146 & 1.226891 \\
+\hline
+40.in & \texttt{NA} & 176 & 130 & \texttt{NA} & 200 & 146 & \texttt{NA} \\
 \hline
 
 \end{longtable}
@@ -396,36 +641,105 @@ Test & Base & MATCH raw & MATCH & Ratio & LP raw & LP & Ratio & OPT/LB \\
 
 
 
+%DONE WITH EXP DATA_______________________________________________________________________
 
+\subsection{Discutie rezultate experimentale}
+\label{subsec:discussion_results}
 
+In aceasta subsectiune discutam datele obtinute (Tabelul~\ref{tab:times} si Tabelul~\ref{tab:quality}), le comparam cu asteptarile teoretice din sectiunile anterioare si formulam recomandari pentru utilizare in situatii reale. Am folosit patru abordari: un algoritm exact de tip Branch \& Bound (BB), o varianta exacta parametrizata (FPT / kernelization + rezolvare exacta pe kernel), o euristica 2-approx bazata pe matching (MATCH) si relaxarea liniara cu rotunjire (LP).
 
+\subsubsection{Observatii privind timpii de executie (scalare si praguri)}
+\textbf{(1) BB: comportament exponential, dar rapid pe grafuri mici/structurate.}
+Conform analizei de complexitate, BB are comportament exponential in cel mai defavorabil caz, iar rezultatele confirma acest lucru: pentru grafuri mici (ex. teste 01--21, 24--30, 36) timpii sunt foarte mici, dar pe grafuri dense sau combinatorial dificile apar depasiri de timeout (\texttt{TO}). Se observa doua tipare:
+\begin{itemize}
+    \item \textbf{Densitatea mare produce explozie combinatorica:} de exemplu, un graf foarte dens (testul 22 cu doua clici mari conectate) duce la \texttt{TO} pentru BB.
+    \item \textbf{Grafuri aleatoare/mediu-dense sunt adesea cele mai grele:} pe instante de tip $G(n,p)$ (teste 31, 32, 34, 35, 37, 38, 40) BB intra in \texttt{TO}, ceea ce este in linie cu faptul ca astfel de grafuri nu au structura usoara (arbore, lant, stea) care sa ajute pruning-ul.
+\end{itemize}
+Acest rezultat confirma asteptarea: BB este excelent ca ``ground truth'' pe instante mici sau pe grafuri cu structura simpla, dar nu este robust ca metoda generala pentru grafuri mari si/sau dense.
 
-%_______________________________________________________________________________________
+\textbf{(2) FPT / kernelization: robust pe multe instante, dar poate deveni lent cand parametrul efectiv nu e mic.}
+Teoretic, kernelization ofera castiguri cand $k$ (dimensiunea solutiei) este relativ mic raportat la $n$, deoarece reduce problema la un kernel de marime $O(k^2)$. In datele experimentale, FPT rezolva foarte rapid multe teste si ramane fezabil chiar si acolo unde BB da \texttt{TO} (ex. testul 33, unde $OPT = 30$ e mic raportat la $n=200$). Totusi, apar si cazuri in care FPT depaseste timeout (ex. teste 31, 32, 34, 35, 37, 38, 40), ceea ce sugereaza ca in acele instante:
+\begin{itemize}
+    \item fie $k$ este mare (sau efectiv mare) si kernelul rezultat nu mai este mic,
+    \item fie regulile de reducere nu comprima suficient graful, iar pasul exact ramane greu.
+\end{itemize}
+Asta este in linie cu teoria: FPT nu promite eficienta pentru valori mari ale parametrului, ci pentru cazurile unde exista o solutie relativ mica.
 
+\textbf{(3) MATCH si LP: timpi foarte mici si scalare buna.}
+Atat euristica bazata pe matching (MATCH) cat si relaxarea liniara + rotunjire (LP) sunt polinomiale; timpii obtinuti sunt foarte mici comparativ cu metodele exacte si raman stabili pe instante mari (ex. teste 18--21 si chiar pe instante dense). In mod practic, acestea sunt abordari predictibile ca runtime.
 
+\subsubsection{Calitatea solutiilor: potrivire cu garantiile}
+\textbf{(1) Cazuri unde OPT este cunoscut: MATCH si LP respecta comportamentul asteptat.}
+Din Tabelul~\ref{tab:quality}, pe majoritatea testelor unde $OPT$ este cunoscut, raportul final (\texttt{cleanup}) este 1.0, adica solutia coincide cu optimul. Acest lucru nu contrazice teoria (garantia de 2-approx este o limita superioara, nu o medie): pe multe grafuri standard (lanturi, cicluri, stele, bipartite complete, grile), aproximarile pot fi optime.
 
+\textbf{(2) Efectul ordinii muchiilor (teste 26--27) confirma un risc practic pentru implementari greedy.}
+Teste 26 si 27 sunt construite astfel incat multimea de muchii este aceeasi, dar ordinea difera. Rezultatul confirma asteptarea:
+\begin{itemize}
+    \item in testul 26 (ordine nefavorabila), MATCH ajunge la un rezultat mult mai slab dupa cleanup (raport \(\approx 1.97\) fata de OPT),
+    \item in testul 27 (ordine favorabila), MATCH obtine solutia optima (raport 1.0).
+\end{itemize}
+Aici se vede clar ca implementarea greedy a unui matching maximal poate fi sensibila la ordinea de parcurgere a muchiilor, deci in situatii reale (date venite din fisiere/loguri/streaming) rezultatul poate varia. Acest lucru merita mentionat explicit ca limitare practica pentru MATCH daca nu se aplica o randomizare controlata sau o strategie de alegere mai robusta.
 
+\textbf{(3) LP poate fi mai stabil ca output, dar nu este imun la decalaje.}
+In general, LP dupa rotunjire are tot garantie de 2-approx. In testele unde OPT este cunoscut, LP a fost de cele mai multe ori optim, dar exista cazuri unde solutia LP este mai mare decat OPT la nivel \texttt{raw} (de exemplu in grafuri clique-like), iar dupa \texttt{cleanup} poate ramane la un raport > 1. In plus, LP introduce dependenta de solver (si costuri de implementare), deci trade-off-ul este: \emph{solutii adesea bune si mai stabile, dar cu infrastructura suplimentara}.
 
+\subsubsection{Comparatie directa cu asteptarile din sectiunile anterioare}
+Rezultatele sunt consistente cu discutia teoretica:
+\begin{itemize}
+    \item \textbf{Algoritmii exacti} (BB, respectiv FPT) sunt corecti, dar runtime-ul explodeaza pe instante dense sau fara structura favorabila; FPT ajuta mai ales cand $k$ este mic.
+    \item \textbf{Algoritmii aproximativi} (MATCH si LP) au runtime predictibil si foarte mic; calitatea solutiilor este de multe ori excelenta pe grafuri structurale, iar limita teoretica (factor 2) este atinsa doar in cazuri construite adversarial sau nefavorabile (precum testele cu ordine de muchii proasta).
+\end{itemize}
 
+\subsubsection{Recomandari de utilizare in cazuri reale}
+In aplicatii reale, alegerea metodei depinde de marimea grafului, densitate si de cat de important este optimul exact.
 
+\textbf{Cand folosim BB (exact):}
+\begin{itemize}
+    \item grafuri mici (zeci de noduri) sau cand trebuie validata o solutie (benchmark/ground truth),
+    \item cand exista structura puternica (de exemplu grafuri de tip arbore + putine muchii suplimentare) si pruning-ul functioneaza bine.
+\end{itemize}
+
+\textbf{Cand folosim FPT / kernelization (exact parametrizat):}
+\begin{itemize}
+    \item cand se suspecteaza ca solutia optima este relativ mica (de exemplu, ``putine noduri-cheie'' care acopera majoritatea conexiunilor),
+    \item in scenarii de tip ``curatare de conflicte'' unde dorim sa eliminam un set mic de elemente pentru a elimina toate conflictele.
+\end{itemize}
+
+\textbf{Cand folosim MATCH (2-approx, foarte rapid):}
+\begin{itemize}
+    \item pentru grafuri foarte mari unde avem nevoie de o solutie imediata,
+    \item pentru pipeline-uri repetitive (multe instante), unde costul per instanta trebuie sa fie foarte mic,
+    \item \textbf{atentie:} daca input-ul are ordine arbitrara a muchiilor, rezultatul poate varia; e recomandata o reordonare determinista (ex. sortare) sau randomizare cu seed fix pentru stabilitate.
+\end{itemize}
+
+\textbf{Cand folosim LP (2-approx, stabil, dar cu solver):}
+\begin{itemize}
+    \item cand vrem o solutie de calitate buna, relativ stabila, si avem acces la un solver LP,
+    \item cand vrem sa folosim informatia din solutia fractionara (ex. valori aproape de 0.5) ca semnal pentru post-procesari sau euristici hibride.
+\end{itemize}
+
+\subsubsection{Concluzie scurta}
+Experimental, metodele aproximative sunt cele mai practice ca runtime, iar metodele exacte sunt utile ca referinta sau cand instanta este mica / are parametrul mic. Un aspect important validat de teste este sensibilitatea euristicii MATCH la ordinea muchiilor, ceea ce trebuie controlat explicit in implementari reale pentru rezultate reproductibile.
+
+%DONE DISCUSSING EXP DATA
 
 
 \begin{thebibliography}{8}
 
 \bibitem{karp1972}
-Karp, R.M.: Reducibility among combinatorial problems. In: Miller, R.E., Thatcher, J.W. (eds.) Complexity of Computer Computations, pp. 85--103. Plenum Press, New York (1972).
-\textit{(Sursa principală pentru clasificarea Vertex Cover ca fiind NP-completă.)}
+Karp, R.M.: Reducibility among combinatorial problems. In: Miller, R.E., Thatcher, J.W. (eds.) Complexity of Computer Computations, pp. 85--103. Plenum Press, New York (1972). 
+\textit{(Sursa principală pentru clasificarea Vertex Cover ca fiind NP-Complete.)}
 
 \bibitem{clrs2009}
-Cormen, T.H., Leiserson, C.E., Rivest, R.L., Stein, C.: Introduction to Algorithms, 3rd edn. MIT Press, Cambridge (2009).
+Cormen, T.H., Leiserson, C.E., Rivest, R.L., Stein, C.: Introduction to Algorithms, 3rd edn. MIT Press, Cambridge (2009). 
 \textit{(Manualul standard de algoritmică folosit pentru definițiile formale și demonstrația reducerii de la Independent Set.)}
 
 \bibitem{garey1979}
-Garey, M.R., Johnson, D.S.: Computers and Intractability: A Guide to the Theory of NP-Completeness. W. H. Freeman and Company, San Francisco (1979).
-\textit{(Cartea de referință pentru demonstrarea NP-durității diverselor probleme.)}
+Garey, M.R., Johnson, D.S.: Computers and Intractability: A Guide to the Theory of NP-Completeness. W. H. Freeman and Company, San Francisco (1979). 
+\textit{(Cartea de referință pentru demonstrarea NP-Hard diverselor probleme.)}
 
 \bibitem{sipser2012}
-Sipser, M.: Introduction to the Theory of Computation, 3rd edn. Cengage Learning (2012).
+Sipser, M.: Introduction to the Theory of Computation, 3rd edn. Cengage Learning (2012). 
 \textit{(Sursa pentru conceptele de clase de complexitate, certificate și verificatori.)}
 
 \bibitem{geeksforgeeks}
