@@ -82,6 +82,9 @@ $(\Leftarrow)$ Presupunem că $V \setminus S$ este o acoperire cu vârfuri. Atun
 
 Concluzionăm că, deoarece putem transforma orice instanță a problemei Independent Set într-o instanță de Vertex Cover printr-o simplă operație de complementare (care durează timp polinomial), problema Vertex Cover este NP-Hard.
 
+%___________________________________________________________________________________________
+
+
 \section{Algoritmi pentru problema Vertex Cover}
 
 Având în vedere caracterul NP-Complete al problemei Vertex Cover, abordările algoritmice se împart în două mari categorii: algoritmi exacți, care garantează obținerea soluției optime dar au complexitate exponențială, și algoritmi aproximativi sau euristici, care sacrifică exactitatea în favoarea unui timp de execuție redus. În această secțiune sunt analizate un algoritm exact bazat pe backtracking (Branch \& Bound) și două abordări aproximative clasice.
@@ -148,7 +151,7 @@ Acest algoritm este aplicabil exclusiv grafurilor de dimensiuni mici, fiind util
     \item Consumul de timp crește rapid odată cu numărul de noduri.
 \end{itemize}
 
-
+%_____________________________________________
 
 \subsection{Algoritm aproximativ 2-approx bazat pe muchii}
 
@@ -198,46 +201,69 @@ Această limită este strict demonstrabilă, deoarece fiecare muchie selectată 
     \item Alegerea arbitrară a muchiilor poate influența rezultatul final.
 \end{itemize}
 
+%_______________________________________________________________________
 
-\subsection { Algoritm exact parametrizat prin Kernelization }
 
-\subsubsection{Ideea de bază}
-Kernelization este o tehnică din cadrul algoritmilor parametrizați (FPT) care reduce dimensiunea problemei Vertex Cover folosind parametrul $k$, dimensiunea dorită a acoperirii. Prin aplicarea unor reguli de reducere, graful inițial este comprimat la un \emph{kernel} de dimensiune $O(k^2)$, fără a pierde informația necesară pentru a găsi o soluție optimă.
+\subsection{Algoritm exact parametrizat (FPT): Buss kernel + bounded search}
 
-Ulterior, se poate aplica un algoritm exact (de exemplu Branch \& Bound) pe kernelul redus pentru a determina acoperirea minimă.
+\subsubsection{Ideea de baza}
+Folosim o abordare FPT pentru varianta de decizie a problemei Vertex Cover: dat un graf $G=(V,E)$ si un parametru $k$, vrem sa decidem daca exista un vertex cover de dimensiune cel mult $k$.
+Algoritmul combina doua componente:
+\begin{itemize}
+    \item \textbf{Kernelizare (Buss)}: aplicam repetat reguli de reducere care simplifica graful folosind parametrul $k$;
+    \item \textbf{Bounded search tree}: daca dupa reduceri mai raman muchii, ramificam pe o muchie $(u,v)$ si incercam cele doua optiuni posibile (trebuie sa alegem cel putin unul dintre capetele muchiei).
+\end{itemize}
 
-\subsubsection{Descrierea algoritmului}
-Algoritmul funcționează recursiv după următorii pași:
+Pentru a obtine \textbf{solutia minima}, nu presupunem $k$ cunoscut: rulam procedura de decizie pentru valori crescatoare ale lui $k$ (de la un lower bound pana la un upper bound) si prima valoare $k$ pentru care raspunsul este \textit{DA} produce o solutie optima.
 
+\subsubsection{Reguli de reducere (kernelizare Buss)}
+Aplicam iterativ urmatoarele reguli pana la stabilizare:
 \begin{enumerate}
-    \item Aplică reguli de reducere pentru noduri și muchii redundante:
-    \begin{itemize}
-        \item Noduri de grad zero pot fi eliminate.
-        \item Noduri de grad 1: daca $v$ are un singur vecin $u$, putem include direct $u$ in acoperire (se acopera muchia $(u,v)$),
-eliminam $u$ si muchiile incidente si decrementam parametrul $k$.
-    \end{itemize}
-    \item Se repetă reducerea până când graful nu mai poate fi comprimat.
-    \item Graful rezultat (kernel) are $O(k^2)$ noduri și muchii.
-    \item Se aplică un algoritm exact pe kernel pentru a găsi Vertex Cover-ul minim.
+    \item \textbf{Grad mare:} daca exista un varf $v$ cu $\deg(v) > k$, atunci $v$ trebuie inclus in orice vertex cover de dimensiune $\le k$.
+    Il adaugam in solutie, eliminam toate muchiile incidente lui $v$ si decrementam $k$.
+    \item \textbf{Grad 1:} daca exista un varf $v$ cu $\deg(v)=1$ si vecin unic $u$, includem $u$ in solutie, eliminam muchiile incidente lui $u$ si decrementam $k$.
+    \item \textbf{Buss bound pe muchii:} dupa aplicarea regulii de grad mare, in graful ramas toate varfurile au grad $\le k$.
+    In acest caz, un cover de dimensiune $\le k$ poate acoperi cel mult $k \cdot k$ muchii, deci daca $|E| > k^2$ raspunsul este \textit{NU}.
 \end{enumerate}
 
+\subsubsection{Cautare recursiva (bounded search tree)}
+Daca dupa reduceri graful mai contine muchii si $k>0$, alegem o muchie $(u,v)\in E$.
+Orice vertex cover trebuie sa contina cel putin unul dintre capetele muchiei, deci ramificam:
+\begin{itemize}
+    \item includem $u$ si apelam recursiv pe graful fara muchiile incidente lui $u$ cu $k \leftarrow k-1$;
+    \item includem $v$ si apelam recursiv pe graful fara muchiile incidente lui $v$ cu $k \leftarrow k-1$.
+\end{itemize}
+
 \subsubsection{Pseudocod}
+
 \begin{lstlisting}
-KernelizationVC(G, k):
-    while reducere_posibila(G):
-        aplica reguli de reducere(G)
-    if $|E(G)| > k^2$:
-        return "Nu exista VC de dimensiune k"
-    else:
-        return BranchAndBound(G, $\emptyset$)
+DECIDE_VC(G, k):
+    // deg(v)>k => fortat; deg(v)=1 => ia vecinul; daca |E|>k^2 => NO
+    aplica_reduceri_Buss(G, k)
+    
+    if k < 0: return NO
+    if E(G) este vida: return YES
+    alege o muchie (u,v) din E(G)
+    return DECIDE_VC(G - inc(u), k-1) OR DECIDE_VC(G - inc(v), k-1)
+
+MIN_VC(G):
+    LB = lower_bound_matching(G)
+    UB = upper_bound_2approx(G)
+    for k = LB .. UB:
+        if DECIDE_VC(G, k) == YES:
+            return k
 \end{lstlisting}
 
 
 \subsubsection{Complexitate}
 \begin{itemize}
-    \item \textbf{Timp:} polinomial pentru reducerea kernelului; timpul algoritmului exact depinde de dimensiunea kernelului ($O(2^{O(k^2)})$).
-    \item \textbf{Spațiu:} $O(k^2)$ pentru kernel.
+    \item \textbf{Timp:} in cel mai rau caz, ramificarea produce un arbore de cautare de dimensiune $O(2^k)$, iar fiecare pas contine operatii polinomiale (reduceri + actualizari).
+    Prin urmare, complexitatea este de forma $O(2^k \cdot \mathrm{poly}(|V|,|E|))$.
+    \item \textbf{Spatiu:} $O(k + |V| + |E|)$ pentru starea curenta si solutia (kernelul ramas are dimensiune controlata de $k$).
 \end{itemize}
+
+
+%____
 
 \subsubsection{Avantaje / Dezavantaje}
 \begin{itemize}
@@ -252,6 +278,10 @@ KernelizationVC(G, k):
         \item Ineficient dacă parametrul $k$ nu este mic.
     \end{itemize}
 \end{itemize}
+
+
+%_________________________________________________________________________
+
 
 \subsection{Relaxare liniară și rotunjire}
 
@@ -488,9 +518,9 @@ Test & $n$ & $m$ & BB (ms) & FPT (ms) & MATCH (ms) & LP (ms) \\
 \hline
 21.in & 500 & 748 & \texttt{0.014940} & \texttt{0.012380} & \texttt{0.008149} & \texttt{5.886419} \\
 \hline
-22.in & 200 & 9901 & \texttt{TO} & \texttt{0.000000} & \texttt{0.046549} & \texttt{54.941238} \\
+22.in & 200 & 9901 & \texttt{TO} & \texttt{TO} & \texttt{0.034190} & \texttt{51.405499} \\
 \hline
-23.in & 30 & 0 & \texttt{0.000850} & \texttt{0.000000} & \texttt{0.000060} & \texttt{0.000020} \\
+23.in & 30 & 0 & \texttt{0.000500} & \texttt{0.000300} & \texttt{0.000090} & \texttt{0.000060} \\
 \hline
 24.in & 250 & 1000 & \texttt{0.011400} & \texttt{0.112918} & \texttt{0.000250} & \texttt{0.562889} \\
 \hline
@@ -599,7 +629,7 @@ Test & OPT & MATCH raw & MATCH & Ratio & LP raw & LP & Ratio \\
 \hline
 22.in & 198 & 200 & 198 & 1.000000 & 200 & 198 & 1.000000 \\
 \hline
-23.in & 0 & 0 & 0 & \texttt{NA} & 0 & 0 & \texttt{NA} \\
+23.in & 0 & 0 & 0 & 1.000000 & 0 & 0 & 1.000000 \\
 \hline
 24.in & 5 & 6 & 5 & 1.000000 & 5 & 5 & 1.000000 \\
 \hline
